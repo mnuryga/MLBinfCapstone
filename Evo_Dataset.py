@@ -57,3 +57,6 @@ class Evo_Dataset(IterableDataset):
 
 			# get dimensions for feature matrix
 			L = seqs.shape[1]
+
+			# discreteize dmat in 64 bins
+			dmat = torch.floor(torch.clamp(dmat, 2, 21.6875).sub(2).mul(3.2))
