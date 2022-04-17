@@ -13,7 +13,7 @@ from Evo_Dataset import Evo_Dataset
 from Models import Evoformer
 
 # CONSTANTS
-batch_size = 8
+batch_size = 4
 learning_rate = 0.01
 num_epochs = 100
 N_res = 256
@@ -28,29 +28,38 @@ def main():
 	device = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 	print(f"using device: {device}")
 
-	# create datasets and dataloaders
-	train_dataset = Evo_Dataset('train', stride)
-	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
+	# # create datasets and dataloaders
+	# train_dataset = Evo_Dataset('train', stride)
+	# train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
 
-	valid_dataset = Evo_Dataset('valid-10', stride)
-	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
+	# valid_dataset = Evo_Dataset('valid-10', stride)
+	# valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
 
-	test_dataset = Evo_Dataset('test', stride)
-	test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, drop_last = True)
+	# test_dataset = Evo_Dataset('test', stride)
+	# test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, drop_last = True)
 
-	evoformer = Evoformer()
+	evoformer = Evoformer(batch_size = batch_size, c_m = 256, c_z = 128, c = 32)
 	evoformer.train()
 
-	optimizer = optim.Adam(model.parameters(), lr = learning_rate)
-	loss_func = nn.CrossEntropyLoss(reduction = 'none')
+	msa_rep = torch.rand((4, 16, 256, 256))
+	prw_rep = torch.rand((4, 256, 256, 128))
 
-	for epoch in range(num_epochs):
-		model.train()
-		sum_loss = 0
-		for t_batch_idx, (pwr_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(train_loader, disable = True)):
-			# send batch to device
-			pwr_crops, msa_crops, dmats, dmat_masks = pwr_crops.to(device), msa_crops.to(device), dmats.to(device), dmat_masks.to(device)
-			optimizer.zero_grad()
+	a, b = evoformer(prw_rep, msa_rep)
+	print(f'{a.shape = }')
+	print(f'{b.shape = }')
+
+	# optimizer = optim.Adam(model.parameters(), lr = learning_rate)
+	# loss_func = nn.CrossEntropyLoss(reduction = 'none')
+
+	# for epoch in range(num_epochs):
+	# 	model.train()
+	# 	sum_loss = 0
+	# 	for t_batch_idx, (pwr_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(train_loader, disable = True)):
+	# 		# send batch to device
+	# 		pwr_crops, msa_crops, dmats, dmat_masks = pwr_crops.to(device), msa_crops.to(device), dmats.to(device), dmat_masks.to(device)
+	# 		optimizer.zero_grad()
+
+
 
 if __name__ == '__main__':
 	main()

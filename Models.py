@@ -6,8 +6,164 @@ import numpy as np
 import sys
 from einops import rearrange
 
+class MHSA(nn.Module):
+	def __init__(self, dim, heads=8, dim_head=None, bias=True):
+		super().__init__()
+		self.bias = bias
+		self.dim_head = (int(dim / heads)) if dim_head is None else dim_head
+		_dim = self.dim_head * heads
+		self.heads = heads
+		self.to_qvk = nn.Linear(dim, _dim * 4, bias=False)
+		self.W_0 = nn.Linear( _dim, dim, bias=False)
+		self.scale_factor = self.dim_head ** -0.5
+		
+		self.fc_scale_bias = nn.Linear(dim, heads)
+
+	def forward(self, x, y=None, mask=None):
+		'''
+		x = MSA
+		y = Pair bias
+		'''
+		
+		# assert x.dim() == 3
+		# Step 1
+		qkv = self.to_qvk(x)  # [batch, tokens, dim*3*heads ]
+
+		# Step 2
+		# decomposition to q,v,k and cast to tuple
+		# the resulted shape before casting to tuple will be:
+		# [3, batch, heads, tokens, dim_head]
+		q, k, v, g = tuple(rearrange(qkv, 'b t (d k h) -> k b h t d ', k=4, h=self.heads))
+		
+		# Step 3
+		# resulted shape will be: [batch, heads, tokens, tokens]
+		scaled_dot_prod = torch.einsum('b h i d , b h j d -> b h i j', q, k) * self.scale_factor
+
+		if mask is not None:
+			assert mask.shape == scaled_dot_prod.shape[2:]
+			scaled_dot_prod = scaled_dot_prod.masked_fill(mask, -np.inf)
+
+		# pair wise bias
+		scaled_bias = 0
+		if self.bias:
+			scaled_bias = self.fc_scale_bias(y)
+			scaled_bias = rearrange(scaled_bias, 'i j k -> k i j').unsqueeze(0)
+			
+		attention = torch.softmax(scaled_dot_prod + scaled_bias, dim=-1)
+		
+		# Step 4. Calc result per batch and per head h
+		out = torch.einsum('b h i j , b h j d -> b h i d', attention, v)
+		
+		# gating
+		g = torch.sigmoid(g)
+		out *= g
+
+		# Step 5. Re-compose: merge heads with dim_head d
+		out = rearrange(out, "b h t d -> b t (h d)")
+
+		# Step 6. Apply final linear transformation layer
+		return self.W_0(out)
+
+class MHSA_Stack(nn.Module):
+	def __init__(self, batch_size, dim, heads=8, dim_head=None):
+		super().__init__()
+		# batches of row wise MHSA
+		self.row_MHSA = nn.ModuleList([MHSA(dim=dim, heads=heads, bias=True, dim_head=None) for i in range(batch_size)])
+		# batches of col wise MHSA
+		self.col_MHSA = nn.ModuleList([MHSA(dim=dim, heads=heads, bias=False, dim_head=None) for i in range(batch_size)])
+		# transition MLP
+		self.fc1 = nn.Linear(dim, 4 * dim)
+		self.fc2 = nn.Linear(4 * dim, dim)
+		
+	def forward(self, x, y):
+		
+		# row wise gated self-attention with pair bias
+		res = torch.empty(x.shape)
+		for i, mhsa in enumerate(self.row_MHSA):
+			res[i] = mhsa(x[i], y[i])
+		x += res # add residuals
+		
+		# column wise gated self-attention
+		x_trans = rearrange(x, 'b i j k -> b j i k')
+		for i, mhsa in enumerate(self.col_MHSA):
+			res[i] = mhsa(x_trans[i])
+		x += res # add residuals
+		
+		# transiion
+		r = F.relu(self.fc1(x))
+		r = self.fc2(r) + x
+		
+		return r
+
+class OuterProductMean(nn.Module):
+	def __init__(self, c_m, c_z, c=32):
+		super().__init__()
+		# linear projections
+		self.fc1 = nn.Linear(c_m, c)
+		self.fc2 = nn.Linear(c**2, c_z)
+		self.flatten = nn.Flatten()
+		self.c = c
+		self.c_z = c_z
+		
+		
+	def forward(self, x):
+		'''
+		x: B x S x R x C
+		res: B x R x R x C
+		'''
+		# results
+		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c_z)
+		
+		# project in_c to out_c
+		x = self.fc1(x)
+		
+		# loop over R
+		for i in range(x.shape[-2]):
+			for j in range(x.shape[-2]):
+				mean_s = torch.mean(torch.einsum('bij,bik->bijk', [x[:, :, i, :], x[:, :, j, :]]), dim=1)
+				# print(mean_s.shape)
+				# project B x C x C to B x C_z
+				mean_s = self.flatten(mean_s)
+				mean_s = self.fc2(mean_s)
+				# print(mean_s.shape)
+				# print(res[:, i, j, :].shape)
+				res[:, i, j, :] = mean_s
+		
+		return res
+		
+class Pair_MHSA(nn.Module):
+	def __init__(self, batch_size, dim, heads=8, dim_head=None):
+		super().__init__()
+		# batches of row wise MHSA
+		self.start_MHSA = nn.ModuleList([MHSA(dim=dim, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
+		# batches of col wise MHSA
+		self.end_MHSA = nn.ModuleList([MHSA(dim=dim, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
+		# transition MLP
+		self.fc1 = nn.Linear(dim, 4 * dim)
+		self.fc2 = nn.Linear(4 * dim, dim)
+		
+	def forward(self, x):
+		
+		# row wise gated self-attention with pair bias
+		res = torch.empty(x.shape)
+		for i, mhsa in enumerate(self.start_MHSA):
+			res[i] = mhsa(x[i], x[i])
+		x += res # add residuals
+		
+		# column wise gated self-attention
+		x_trans = rearrange(x, 'b i j k -> b j i k')
+		for i, mhsa in enumerate(self.end_MHSA):
+			res[i] = mhsa(x_trans[i], x_trans[i])
+		x += res # add residuals
+		
+		# transiion
+		x = F.relu(self.fc1(x))
+		x = self.fc2(x)
+		
+		return x
+
 class Triangular_Multiplicative_Model(nn.Module):
-	def __init__(self, direction, c_z = 128, c = 128):
+	def __init__(self, direction, c_z = 128, c = 16):
 		super().__init__()
 		self.c = c
 		self.direction = direction
@@ -38,12 +194,21 @@ class Triangular_Multiplicative_Model(nn.Module):
 		return z
 
 class Evoformer(nn.Module):
-	def __init__(self):
+	def __init__(self, batch_size, c_m, c_z, c):
 		super().__init__()
-		pass
-	
-	def forward(self, x):
-		pass
+		self.msha_stack = MHSA_Stack(batch_size, c_m, heads = 4, dim_head = c)
+		self.outer_product_mean = OuterProductMean(c_m, c_z, c = c)
+		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing')
+		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming')
+		self.pair_mhsa = Pair_MHSA(batch_size, c_z, heads = 4, dim_head = c)
+
+	def forward(self, prw_rep, msa_rep):
+		msa_rep = self.msha_stack(msa_rep, prw_rep)
+		x = self.outer_product_mean(msa_rep)+prw_rep
+		x = self.triangular_mult_outgoing(x) + x
+		x = self.triangular_mult_outgoing(x) + x
+		prw_rep = self.pair_mhsa(x) + x
+		return prw_rep, msa_rep
 
 class PSSM_Projector(nn.Module):
 	def __init__(self, num_layers, c_m):
