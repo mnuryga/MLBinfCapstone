@@ -14,11 +14,15 @@ from Models import Evoformer
 
 # CONSTANTS
 batch_size = 4
-learning_rate = 0.01
+r = 256
+c_m = 256
+c_z = 128
+c = 32
+s = 16
+
 num_epochs = 100
-N_res = 256
+learning_rate = 0.01
 stride = 128
-N_clust = 16
 progress_bar = True
 save_to_file = True
 load_from_file = True
@@ -38,11 +42,11 @@ def main():
 	# test_dataset = Evo_Dataset('test', stride)
 	# test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, drop_last = True)
 
-	evoformer = Evoformer(batch_size = batch_size, c_m = 256, c_z = 128, c = 32)
+	evoformer = Evoformer(batch_size, c_m, c_z, c)
 	evoformer.train()
 
-	msa_rep = torch.rand((4, 16, 256, 256))
-	prw_rep = torch.rand((4, 256, 256, 128))
+	msa_rep = torch.rand((batch_size, s, r, c_m))
+	prw_rep = torch.rand((batch_size, r, r, c_z))
 
 	a, b = evoformer(prw_rep, msa_rep)
 	print(f'{a.shape = }')
