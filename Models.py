@@ -6,6 +6,37 @@ import numpy as np
 import sys
 from einops import rearrange
 
+class Triangular_Multiplicative_Model(nn.Module):
+	def __init__(self, direction, c_z = 128, c = 128):
+		super().__init__()
+		self.c = c
+		self.direction = direction
+		self.ln1 = nn.LayerNorm(c_z)
+		self.la1 = nn.Linear(c_z, c)
+		self.la2 = nn.Linear(c_z, c)
+		self.lb1 = nn.Linear(c_z, c)
+		self.lb2 = nn.Linear(c_z, c)
+		self.ln2 = nn.LayerNorm(c)
+		self.lg = nn.Linear(c_z, c_z)
+		self.lz = nn.Linear(c, c_z)
+	
+	def forward(self, x):
+		z = self.ln1(x)
+		a = torch.sigmoid(torch.mul(self.la1(z), self.la2(z)))
+		b = torch.sigmoid(torch.mul(self.lb1(z), self.lb2(z)))
+		if self.direction == 'incoming':
+			a = rearrange(a, 'b i j k -> b j i k')
+			b = rearrange(b, 'b i j k -> b j i k')
+		g = torch.sigmoid(self.lg(z))
+		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c))
+		for i in range(a.shape[1]):
+			for j in range(b.shape[2]):
+				ai = a[:, i, :]
+				bj = b[:, :, j]
+				z[:, i, j] = torch.sum(torch.mul(ai, bj), dim = -2)
+		z = torch.mul(g, self.lz(self.ln2(z)))
+		return z
+
 class Evoformer(nn.Module):
 	def __init__(self):
 		super().__init__()
