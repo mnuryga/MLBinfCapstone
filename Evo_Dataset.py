@@ -8,7 +8,7 @@ import sidechainnet as scn
 import numpy as np
 from tqdm import tqdm
 import sys
-from einops import rearrange, repeat
+from einops import rearrange, reduce, repeat
 import numba
 from numba import jit
 
@@ -31,9 +31,11 @@ class Evo_Dataset(IterableDataset):
 		self.c_2 = c_2
 		self.pad2d = nn.ZeroPad2d((0, N_res, 0, N_res))
 		if USE_DEBUG_DATA:
-			self.data = scn.load('debug', with_pytorch="dataloaders", seq_as_onehot=True, aggregate_model_input=False, batch_size=16, num_workers = 0)
+			self.data = scn.load('debug', with_pytorch="dataloaders", seq_as_onehot=True,
+				aggregate_model_input=False, batch_size=8, num_workers = 0)
 		else:
-			self.data = scn.load(casp_version = 7, with_pytorch="dataloaders", seq_as_onehot=True, aggregate_model_input=False, batch_size=16, num_workers = 0)
+			self.data = scn.load(casp_version = 7, with_pytorch="dataloaders", seq_as_onehot=True,
+				aggregate_model_input=False, batch_size=8, num_workers = 0)
 
 		# CHECK IF THIS WILL BACKPROP PROPERLY
 		self.pssm_projector = PSSM_Projector(N_clust, c_m)
@@ -91,26 +93,30 @@ class Evo_Dataset(IterableDataset):
 			L = seqs.shape[1]
 
 			# discreteize dmat in 64 bins
-			# dmats = torch.floor(torch.clamp(dmats, 2, 21.6875).sub(2).mul(3.2))
+			dmats = torch.floor(torch.clamp(dmats, 2, 21.6875).sub(2).mul(3.2))
 
 			# pad data
 			seqs = F.pad(seqs, (0, 1, 0, self.N_res), 'constant', 0)
 			evos = F.pad(evos, (0, 0, 0, self.N_res), 'constant', 0)
 			# masks = F.pad(masks, (0, self.N_res), 'constant', 0)
-			# dmats = F.pad(dmats, (0, self.N_res, 0, self.N_res), 'constant', 0)
-			# dmat_masks = F.pad(dmat_masks, (0, self.N_res, 0, self.N_res), 'constant', 0)
+			dmats = F.pad(dmats, (0, self.N_res, 0, self.N_res), 'constant', 0)
+			dmat_masks = F.pad(dmat_masks, (0, self.N_res, 0, self.N_res), 'constant', 0)
+
+			# dmat is symmetrical, so we want to mask out all positions below the diagonal
+			for i in range(L):
+				dmat_masks[:i] = 0
 
 			# get PSSM data projections
 			msa_reps = self.pssm_projector(evos)
 
 			# get residue index and target feat projections
-			l1, l2 = self.input_feature_projector(seqs.float())
+			li, lj = self.input_feature_projector(seqs.float())
 
 			# calculate outer sum
-			l1 = repeat(l1, 'b i c -> b rep i c', rep = L + self.N_res)
-			l2 = repeat(l2, 'b i c -> b rep i c', rep = L + self.N_res)
-			l2 = rearrange(l2, 'b i j c -> b j i c')
-			outer_sum = torch.add(l1, l2)
+			li = repeat(li, 'b i c -> b rep i c', rep = L + self.N_res)
+			lj = repeat(lj, 'b i c -> b rep i c', rep = L + self.N_res)
+			lj = rearrange(lj, 'b i j c -> b j i c')
+			outer_sum = torch.add(li, lj)
 
 			# calculate relative positional encodings
 			all_res = torch.arange(L+self.N_res)
@@ -129,20 +135,24 @@ class Evo_Dataset(IterableDataset):
 			pairwise_reps = torch.add(outer_sum, relpos_encoding)
 
 			# for each sequence of length L
-			for pairwise_rep, msa_rep in zip(pairwise_reps, msa_reps):
+			for pairwise_rep, msa_rep, dmat, dmat_mask in zip(pairwise_reps, msa_reps, dmats, dmat_masks):
 				# get crops of length N_res
 				# generate starting position for window
 				start_i = 0 if L < 64 or not self.randomize_start else np.random.randint(0, 64)
 				for i in range(start_i, L, self.stride):
-					yield pairwise_rep[i:i+self.N_res, i:i+self.N_res], msa_rep[:, i:i+self.N_res]
+					yield pairwise_rep[i:i+self.N_res, i:i+self.N_res], msa_rep[:, i:i+self.N_res], dmat[i:i+self.N_res, i:i+self.N_res], dmat_mask[i:i+self.N_res, i:i+self.N_res]
 
 
 # main function for testing
 def main():
 	ds = Evo_Dataset('train', 128)
 	dl = DataLoader(dataset = ds, batch_size = 5, num_workers = 0,  drop_last = True)
-	for i, (pr, mr) in enumerate(dl):
-		pass
+	for i, (pr, mr, dm, mm) in enumerate(dl):
+		print(f'{pr.shape = }')
+		print(f'{mr.shape = }')
+		print(f'{dm.shape = }')
+		print(f'{mm.shape = }')
+		sys.exit(0)
 
 if __name__ == '__main__':
 	main()

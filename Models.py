@@ -6,7 +6,7 @@ import numpy as np
 import sys
 from einops import rearrange
 
-class Evoformer_Model(nn.Module):
+class Evoformer(nn.Module):
 	def __init__(self):
 		super().__init__()
 		pass
