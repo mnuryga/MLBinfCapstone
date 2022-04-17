@@ -9,13 +9,15 @@ import numpy as np
 from tqdm import tqdm
 import sys
 from einops import rearrange, repeat
+import numba
+from numba import jit
 
 from Models import PSSM_Projector
 from Models import Input_Feature_Projector
 from Models import Residue_Index_Projector
 
-USE_DEBUG_DATA = True
-progress_bar = False
+USE_DEBUG_DATA = False
+progress_bar = True
 
 class Evo_Dataset(IterableDataset):
 	def __init__(self, key, stride, N_res = 256, N_clust = 16, c_m = 256, c_2 = 128, randomize_start = True):
@@ -108,7 +110,7 @@ class Evo_Dataset(IterableDataset):
 			l1 = repeat(l1, 'b i c -> b rep i c', rep = L + self.N_res)
 			l2 = repeat(l2, 'b i c -> b rep i c', rep = L + self.N_res)
 			l2 = rearrange(l2, 'b i j c -> b j i c')
-			outer_sum = l1.add(l2)
+			outer_sum = torch.add(l1, l2)
 
 			# calculate relative positional encodings
 			all_res = torch.arange(L+self.N_res)
@@ -117,14 +119,14 @@ class Evo_Dataset(IterableDataset):
 			dj = rearrange(dj, 'i j -> j i')
 
 			# clamp differences and encode as onehot
-			d = torch.clamp(di.add(dj), -32, 32).add(32)
+			d = torch.add(torch.clamp(torch.add(di, dj), -32, 32), 32)
 			d = F.one_hot(d)
 
 			# pass through linear layer
 			relpos_encoding = self.residue_index_projector(d.float())
 
 			# create pairwise representation
-			pairwise_reps = outer_sum.add(relpos_encoding)
+			pairwise_reps = torch.add(outer_sum, relpos_encoding)
 
 			# for each sequence of length L
 			for pairwise_rep, msa_rep in zip(pairwise_reps, msa_reps):
@@ -137,15 +139,10 @@ class Evo_Dataset(IterableDataset):
 
 # main function for testing
 def main():
-	ds = Evo_Dataset('test', 128)
-	dl = DataLoader(dataset = ds, batch_size = 5)
+	ds = Evo_Dataset('train', 128)
+	dl = DataLoader(dataset = ds, batch_size = 5, num_workers = 0,  drop_last = True)
 	for i, (pr, mr) in enumerate(dl):
-		print()
-		print(i)
-		print(f'{pr.shape = }')
-		print(f'{mr.shape = }')
-		if i > 20:
-			sys.exit(0)
+		pass
 
 if __name__ == '__main__':
 	main()
