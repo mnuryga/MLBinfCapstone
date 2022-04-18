@@ -72,13 +72,14 @@ class MHSA(nn.Module):
 		return self.W_0(out)
 
 class MSA_Stack(nn.Module):
-	def __init__(self, batch_size, c_m, c_z, heads=8, dim_head=None):
+	def __init__(self, batch_size, c_m, c_z, heads=8, dim_head=None, device = 'cpu'):
         '''
         Do a row-wise MHSA with pair bias follow by a column-wise 
         MHSA without bias. The result is then passed through a two
         layer MLP as transition.
         '''
 		super().__init__()
+		self.device = device
 		# batches of row wise MHSA
 		self.row_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=None) for i in range(batch_size)])
 		# batches of col wise MHSA
@@ -88,7 +89,7 @@ class MSA_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_m, c_m)
 		
 	def forward(self, x, bias_rep):
-		res = torch.empty(x.shape)
+		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.row_MHSA):
 			res[i] = mhsa(x[i], bias_rep[i])
@@ -107,12 +108,13 @@ class MSA_Stack(nn.Module):
 		return r
 
 class Outer_Product_Mean(nn.Module):
-	def __init__(self, c_m, c_z, c=32):
+	def __init__(self, c_m, c_z, c=32, device = 'cpu'):
         '''
         Do a linear transform, column-wise outer product, mean, and finally 
         another linear transform.
         '''
 		super().__init__()
+		self.device = device
 		# linear projections
 		self.fc1 = nn.Linear(c_m, c)
 		self.fc2 = nn.Linear(c**2, c_z)
@@ -126,7 +128,7 @@ class Outer_Product_Mean(nn.Module):
 		res: result of the outer product (B x R x R x C)
 		'''
 		# results
-		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c_z)
+		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c_z).to(self.device)
 		
 		# project in_c to out_c
 		x = self.fc1(x)
@@ -146,13 +148,14 @@ class Outer_Product_Mean(nn.Module):
 		return res
 
 class Pair_Stack(nn.Module):
-	def __init__(self, batch_size, c_z, heads=8, dim_head=None):
+	def __init__(self, batch_size, c_z, heads=8, dim_head=None, device = 'cpu'):
         '''
         Do a row-wise MHSA with pair bias on the start edges follow
         by a column-wise MHSA with bias on the end edes. The result 
         is then passed through a two layer MLP as transition.
         '''
 		super().__init__()
+		self.device = device
 		# batches of row wise MHSA
 		self.start_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
 		# batches of col wise MHSA
@@ -162,7 +165,7 @@ class Pair_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_z, c_z)
 		
 	def forward(self, x):
-		res = torch.empty(x.shape)
+		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i], x[i])
@@ -182,9 +185,10 @@ class Pair_Stack(nn.Module):
 		return r
 
 class Triangular_Multiplicative_Model(nn.Module):
-	def __init__(self, direction, c_z = 128, c = 16):
+	def __init__(self, direction, c_z = 128, c = 16, device = 'cpu'):
 		super().__init__()
 		self.c = c
+		self.device = device
 		self.direction = direction
 		self.ln1 = nn.LayerNorm(c_z)
 		self.la1 = nn.Linear(c_z, c)
@@ -203,7 +207,7 @@ class Triangular_Multiplicative_Model(nn.Module):
 			a = rearrange(a, 'b i j k -> b j i k')
 			b = rearrange(b, 'b i j k -> b j i k')
 		g = torch.sigmoid(self.lg(z))
-		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c))
+		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c)).to(self.device)
 		for i in range(a.shape[1]):
 			for j in range(b.shape[2]):
 				ai = a[:, i, :]
@@ -213,13 +217,13 @@ class Triangular_Multiplicative_Model(nn.Module):
 		return z
 
 class Evoformer(nn.Module):
-	def __init__(self, batch_size, c_m, c_z, c):
+	def __init__(self, batch_size, c_m, c_z, c, device = 'cpu'):
 		super().__init__()
-		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c)
-		self.outer_product_mean = Outer_Product_Mean(c_m, c_z, c = c)
-		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing')
-		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming')
-		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c)
+		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c, device = device)
+		self.outer_product_mean = Outer_Product_Mean(c_m, c_z, c = c, device = device)
+		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing', c_z = c_z, c = c, device = device)
+		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming', c_z = c_z, c = c, device = device)
+		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c, device = device)
 
 	def forward(self, prw_rep, msa_rep):
 		msa_rep = self.msa_stack(msa_rep, prw_rep)

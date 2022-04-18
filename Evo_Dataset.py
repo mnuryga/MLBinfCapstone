@@ -16,34 +16,32 @@ from Models import PSSM_Projector
 from Models import Input_Feature_Projector
 from Models import Residue_Index_Projector
 
-USE_DEBUG_DATA = False
-progress_bar = True
-
 class Evo_Dataset(IterableDataset):
-	def __init__(self, key, stride, N_res = 256, N_clust = 16, c_m = 256, c_2 = 128, randomize_start = True):
+	def __init__(self, key, stride, r, s, c_m, c_z, randomize_start = True, progress_bar = False, USE_DEBUG_DATA = False):
 		super().__init__()
 		self.randomize_start = randomize_start
+		self.progress_bar = progress_bar
 		self.key = key
 		self.stride = stride
-		self.N_res = N_res
-		self.N_clust = N_clust
+		self.r = r
+		self.s = s
 		self.c_m = c_m
-		self.c_2 = c_2
-		self.pad2d = nn.ZeroPad2d((0, N_res, 0, N_res))
+		self.c_z = c_z
+		self.pad2d = nn.ZeroPad2d((0, r, 0, r))
 		if USE_DEBUG_DATA:
 			self.data = scn.load('debug', with_pytorch="dataloaders", seq_as_onehot=True,
-				aggregate_model_input=False, batch_size=8, num_workers = 0)
+				aggregate_model_input=False, batch_size=4, num_workers = 0)
 		else:
 			self.data = scn.load(casp_version = 7, with_pytorch="dataloaders", seq_as_onehot=True,
-				aggregate_model_input=False, batch_size=8, num_workers = 0)
+				aggregate_model_input=False, batch_size=4, num_workers = 0)
 
 		# CHECK IF THIS WILL BACKPROP PROPERLY
-		self.pssm_projector = PSSM_Projector(N_clust, c_m)
-		self.input_feature_projector = Input_Feature_Projector(c_2)
-		self.residue_index_projector = Residue_Index_Projector(c_2)
+		self.pssm_projector = PSSM_Projector(s, c_m)
+		self.input_feature_projector = Input_Feature_Projector(c_z)
+		self.residue_index_projector = Residue_Index_Projector(c_z)
 
 	def pad1d(x):
-		out = torch.zeros(len(x)+self.N_res)
+		out = torch.zeros(len(x)+self.r)
 		out[:len(x)] = x
 		return out
 
@@ -85,7 +83,7 @@ class Evo_Dataset(IterableDataset):
 
 	def __iter__(self):
 		# loop over sets of sequences with same length
-		for batch_idx, batch in enumerate(tqdm(self.data[self.key], disable = not progress_bar)):
+		for batch_idx, batch in enumerate(tqdm(self.data[self.key], disable = not self.progress_bar)):
 			seqs, evos, angs, masks, dmats, dmat_masks = self.get_seq_features(batch)
 
 			# get dimensions for feature matrix
@@ -96,11 +94,11 @@ class Evo_Dataset(IterableDataset):
 			dmats = torch.floor(torch.clamp(dmats, 2, 21.6875).sub(2).mul(3.2))
 
 			# pad data
-			seqs = F.pad(seqs, (0, 1, 0, self.N_res), 'constant', 0)
-			evos = F.pad(evos, (0, 0, 0, self.N_res), 'constant', 0)
-			# masks = F.pad(masks, (0, self.N_res), 'constant', 0)
-			dmats = F.pad(dmats, (0, self.N_res, 0, self.N_res), 'constant', 0)
-			dmat_masks = F.pad(dmat_masks, (0, self.N_res, 0, self.N_res), 'constant', 0)
+			seqs = F.pad(seqs, (0, 1, 0, self.r), 'constant', 0)
+			evos = F.pad(evos, (0, 0, 0, self.r), 'constant', 0)
+			# masks = F.pad(masks, (0, self.r), 'constant', 0)
+			dmats = F.pad(dmats, (0, self.r, 0, self.r), 'constant', 0)
+			dmat_masks = F.pad(dmat_masks, (0, self.r, 0, self.r), 'constant', 0)
 
 			# dmat is symmetrical, so we want to mask out all positions below the diagonal
 			for i in range(L):
@@ -113,15 +111,15 @@ class Evo_Dataset(IterableDataset):
 			li, lj = self.input_feature_projector(seqs.float())
 
 			# calculate outer sum
-			li = repeat(li, 'b i c -> b rep i c', rep = L + self.N_res)
-			lj = repeat(lj, 'b i c -> b rep i c', rep = L + self.N_res)
+			li = repeat(li, 'b i c -> b rep i c', rep = L + self.r)
+			lj = repeat(lj, 'b i c -> b rep i c', rep = L + self.r)
 			lj = rearrange(lj, 'b i j c -> b j i c')
 			outer_sum = torch.add(li, lj)
 
 			# calculate relative positional encodings
-			all_res = torch.arange(L+self.N_res)
-			di = repeat(all_res, 'i -> rep i', rep = L + self.N_res)
-			dj = repeat(-all_res, 'j -> rep j', rep = L + self.N_res)
+			all_res = torch.arange(L+self.r)
+			di = repeat(all_res, 'i -> rep i', rep = L + self.r)
+			dj = repeat(-all_res, 'j -> rep j', rep = L + self.r)
 			dj = rearrange(dj, 'i j -> j i')
 
 			# clamp differences and encode as onehot
@@ -136,11 +134,11 @@ class Evo_Dataset(IterableDataset):
 
 			# for each sequence of length L
 			for pairwise_rep, msa_rep, dmat, dmat_mask in zip(pairwise_reps, msa_reps, dmats, dmat_masks):
-				# get crops of length N_res
+				# get crops of length r
 				# generate starting position for window
 				start_i = 0 if L < 64 or not self.randomize_start else np.random.randint(0, 64)
 				for i in range(start_i, L, self.stride):
-					yield pairwise_rep[i:i+self.N_res, i:i+self.N_res], msa_rep[:, i:i+self.N_res], dmat[i:i+self.N_res, i:i+self.N_res], dmat_mask[i:i+self.N_res, i:i+self.N_res]
+					yield pairwise_rep[i:i+self.r, i:i+self.r], msa_rep[:, i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
 
 
 # main function for testing
