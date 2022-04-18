@@ -109,27 +109,24 @@ class MSA_Stack(nn.Module):
 		return r
 
 class Outer_Product_Mean(nn.Module):
+	
 	def __init__(self, c_m, c_z, c=32, device = 'cpu'):
-		'''
-		Do a linear transform, column-wise outer product, mean, and finally 
-		another linear transform.
-		'''
 		super().__init__()
 		self.device = device
 		# linear projections
 		self.fc1 = nn.Linear(c_m, c)
 		self.fc2 = nn.Linear(c**2, c_z)
-		self.flatten = nn.Flatten()
+		self.flatten = nn.Flatten(start_dim=3)
 		self.c = c
 		self.c_z = c_z
 		
 	def forward(self, x):
 		'''
-		x: input matrix for the outer product (B x S x R x C)
-		res: result of the outer product (B x R x R x C)
+		x: B x S x R x C
+		res: B x R x R x C
 		'''
 		# results
-		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c_z).to(self.device)
+		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(self.device)
 		
 		# project in_c to out_c
 		x = self.fc1(x)
@@ -138,16 +135,14 @@ class Outer_Product_Mean(nn.Module):
 		for i in range(x.shape[-2]):
 			for j in range(x.shape[-2]):
 				mean_s = torch.mean(torch.einsum('bij,bik->bijk', [x[:, :, i, :], x[:, :, j, :]]), dim=1)
-				# print(mean_s.shape)
-				# project B x C x C to B x C_z
-				mean_s = self.flatten(mean_s)
-				mean_s = self.fc2(mean_s)
-				# print(mean_s.shape)
-				# print(res[:, i, j, :].shape)
-				res[:, i, j, :] = mean_s
+				res[:, i, j, :, :] = mean_s
+		
+		# flatten and project back
+		res = self.flatten(res)
+		res = self.fc2(res)
 		
 		return res
-
+				
 class Pair_Stack(nn.Module):
 	def __init__(self, batch_size, c_z, heads=8, dim_head=None, device = 'cpu'):
 		'''
