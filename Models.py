@@ -192,17 +192,18 @@ class Triangular_Multiplicative_Model(nn.Module):
 		self.c = c
 		self.device = device
 		self.direction = direction
-		self.ln1 = nn.LayerNorm(c_z)
+		# self.ln1 = nn.LayerNorm(c_z)
 		self.la1 = nn.Linear(c_z, c)
 		self.la2 = nn.Linear(c_z, c)
 		self.lb1 = nn.Linear(c_z, c)
 		self.lb2 = nn.Linear(c_z, c)
-		self.ln2 = nn.LayerNorm(c)
+		# self.ln2 = nn.LayerNorm(c)
 		self.lg = nn.Linear(c_z, c_z)
 		self.lz = nn.Linear(c, c_z)
 	
 	def forward(self, x):
-		z = self.ln1(x)
+		# z = self.ln1(x)
+		z = x
 		a = torch.sigmoid(torch.mul(self.la1(z), self.la2(z)))
 		b = torch.sigmoid(torch.mul(self.lb1(z), self.lb2(z)))
 		if self.direction == 'incoming':
@@ -215,7 +216,8 @@ class Triangular_Multiplicative_Model(nn.Module):
 				ai = a[:, i, :]
 				bj = b[:, :, j]
 				z[:, i, j] = torch.sum(torch.mul(ai, bj), dim = -2)
-		z = torch.mul(g, self.lz(self.ln2(z)))
+		# z = torch.mul(g, self.lz(self.ln2(z)))
+		z = torch.mul(g, self.ln2(z))
 		return z
 
 class Evoformer(nn.Module):
