@@ -13,7 +13,9 @@ from Evo_Dataset import Evo_Dataset
 from Models import Evoformer
 
 # CONSTANTS
-batch_size = 4
+num_gpu = 4
+batch_size = 64 * num_gpu
+batch_size_gpu = batch_size // num_gpu
 r = 64
 c_m = 128
 c_z = 64
@@ -40,7 +42,7 @@ def main():
 	valid_dataset = Evo_Dataset('valid-10', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
 
-	evoformer = Evoformer(batch_size, c_m, c_z, c, device = device).to(device)
+	evoformer = nn.DataParallel(Evoformer(batch_size_gpu, c_m, c_z, c, device = device)).to(device)
 	evoformer.train()
 
 	# load state_dict from file if specified
@@ -93,6 +95,7 @@ def main():
 		# VALIDATION
 		valid_loss = 0
 		evoformer.eval()
+		v_batch_count = 0
 		with torch.no_grad():
 			for v_batch_idx, (prw_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(valid_loader, disable = True)):
 				# send batch to device
@@ -107,6 +110,7 @@ def main():
 				loss = loss.mul(dmat_masks)
 				loss = torch.mean(loss)
 				valid_loss += loss.item()
+				v_batch_count += 1
 
 		# append current loss to prev_loss list
 		prev_loss.append(valid_loss)
@@ -114,7 +118,7 @@ def main():
 		# print out epoch stats
 		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size:.6f}')
+		print(f'\tValid loss per batch = {valid_loss/v_batch_count/batch_size:.6f}')
 
 		# if valid_loss exceedes the 5-epoch rolling sum, break from training
 		if valid_loss > np.mean(prev_loss[-5:]):

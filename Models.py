@@ -89,18 +89,21 @@ class MSA_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_m, c_m)
 		
 	def forward(self, x, bias_rep):
-		res = torch.empty(x.shape).to(self.device)
+		res = torch.empty(x.shape).to(x.get_device())
 		# row wise gated self-attention with pair bias
+# 		print(f'x.shape={x.shape}')
+# 		print(f'res.cuda={x.get_device()}')
 		for i, mhsa in enumerate(self.row_MHSA):
 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
-		x += res # add residuals
+# 		print(f'x.cuda | res.cuda = {x.get_device()} | {res.get_device()}')
+		x = x + res # add residuals
 		
-		res2 = torch.empty(x.shape).to(self.device)
+		res2 = torch.empty(x.shape).to(x.get_device())
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.col_MHSA):
 			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
-		x += res2 # add residuals
+		x = x + res2 # add residuals
 		
 		# transiion
 		r = F.relu(self.fc1(x))
@@ -126,7 +129,7 @@ class Outer_Product_Mean(nn.Module):
 		res: B x R x R x C
 		'''
 		# results
-		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(self.device)
+		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(x.get_device())
 		
 		# project in_c to out_c
 		x = self.fc1(x)
@@ -161,19 +164,19 @@ class Pair_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_z, c_z)
 		
 	def forward(self, x):
-		res = torch.empty(x.shape).to(self.device)
+		res = torch.empty(x.shape).to(x.get_device())
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i].clone(), x[i].clone())
-		x += res # add residuals
+		x = x + res # add residuals
 		
-		res2 = torch.empty(x.shape).to(self.device)
+		res2 = torch.empty(x.shape).to(x.get_device())
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.end_MHSA):
 			# res[i] = mhsa(x_trans[i], x_trans[i])
 			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
-		x += res2 # add residuals
+		x = x + res2 # add residuals
 		
 		# transiion
 		r = F.relu(self.fc1(x))
@@ -205,7 +208,7 @@ class Triangular_Multiplicative_Model(nn.Module):
 			a = rearrange(a, 'b i j k -> b j i k')
 			b = rearrange(b, 'b i j k -> b j i k')
 		g = torch.sigmoid(self.lg(z))
-		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c)).to(self.device)
+		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c)).to(x.get_device())
 		for i in range(a.shape[1]):
 			for j in range(b.shape[2]):
 				ai = a[:, i, :]
@@ -232,7 +235,7 @@ class Evoformer(nn.Module):
 		msa_rep = self.msa_stack(msa_rep, prw_rep)
 
 		# calculate outer product of msa and add residual
-		x = self.outer_product_mean(msa_rep)+prw_rep
+		x = self.outer_product_mean(msa_rep) + prw_rep
 
 		# pass through triangular multipication for 
 		# outgoing and incoming edges
