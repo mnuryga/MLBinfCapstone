@@ -14,7 +14,7 @@ def funct(x):
 
 def main():
 	x = np.zeros((10, 20, 30))
-	y = np.zeros(*x.shape)
+	y = np.zeros((*x.shape))
 	print(f'{y.shape = }')
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@ from Models import Input_Feature_Projector
 from Models import Residue_Index_Projector
 
 class Evo_Dataset(IterableDataset):
-	def __init__(self, key, stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA, by_seq = False):
+	def __init__(self, key, stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA, by_seq = False):
 		super().__init__()
 		self.by_seq = by_seq
 		self.progress_bar = progress_bar
@@ -28,10 +28,10 @@ class Evo_Dataset(IterableDataset):
 		self.pad2d = nn.ZeroPad2d((0, r, 0, r))
 		if USE_DEBUG_DATA:
 			self.data = scn.load('debug', with_pytorch="dataloaders", seq_as_onehot=True,
-				aggregate_model_input=False, batch_size=4, num_workers = 0)
+				aggregate_model_input=False, batch_size=batch_size, num_workers = 0)
 		else:
 			self.data = scn.load(casp_version = 7, with_pytorch="dataloaders", seq_as_onehot=True,
-				aggregate_model_input=False, batch_size=4, num_workers = 0)
+				aggregate_model_input=False, batch_size=batch_size, num_workers = 0)
 
 		# CHECK IF THIS WILL BACKPROP PROPERLY
 		self.pssm_projector = PSSM_Projector(s, c_m)
@@ -105,10 +105,12 @@ class Evo_Dataset(IterableDataset):
 			# get PSSM data projections
 			# CHANGE THIS 
 			# FIRST ROW IS EVOS
-			msa_reps = self.pssm_projector(evos)
+			with torch.no_grad():
+				msa_reps = self.pssm_projector(evos)
 
 			# get residue index and target feat projections
-			li, lj = self.input_feature_projector(seqs.float())
+			with torch.no_grad():
+				li, lj = self.input_feature_projector(seqs.float())
 
 			# calculate outer sum
 			li = repeat(li, 'b i c -> b rep i c', rep = L + self.r)
@@ -127,7 +129,8 @@ class Evo_Dataset(IterableDataset):
 			d = F.one_hot(d)
 
 			# pass through linear layer
-			relpos_encoding = self.residue_index_projector(d.float())
+			with torch.no_grad():
+				relpos_encoding = self.residue_index_projector(d.float())
 
 			# create pairwise representation
 			pairwise_reps = torch.add(outer_sum, relpos_encoding)
