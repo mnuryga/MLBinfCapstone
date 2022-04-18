@@ -106,7 +106,7 @@ def main():
 				# multiply loss output element-wise by mask and take the mean
 				loss = loss.mul(dmat_masks)
 				loss = torch.mean(loss)
-				valid_loss += loss
+				valid_loss += loss.item()
 
 		# append current loss to prev_loss list
 		prev_loss.append(valid_loss)

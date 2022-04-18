@@ -105,6 +105,8 @@ class Evo_Dataset(IterableDataset):
 				dmat_masks[:i] = 0
 
 			# get PSSM data projections
+			# CHANGE THIS 
+			# FIRST ROW IS EVOS
 			msa_reps = self.pssm_projector(evos)
 
 			# get residue index and target feat projections

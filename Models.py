@@ -216,6 +216,9 @@ class Triangular_Multiplicative_Model(nn.Module):
 		return z
 
 class Evoformer(nn.Module):
+	'''
+	evoformer trunk as outlined in the alphafold2 paper
+	'''
 	def __init__(self, batch_size, c_m, c_z, c, device = 'cpu'):
 		super().__init__()
 		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c, device = device)
@@ -225,14 +228,25 @@ class Evoformer(nn.Module):
 		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c, device = device)
 
 	def forward(self, prw_rep, msa_rep):
+		# pass msa through attention module
 		msa_rep = self.msa_stack(msa_rep, prw_rep)
+
+		# calculate outer product of msa and add residual
 		x = self.outer_product_mean(msa_rep)+prw_rep
+
+		# pass through triangular multipication for 
+		# outgoing and incoming edges
 		x = self.triangular_mult_outgoing(x) + x
-		x = self.triangular_mult_outgoing(x) + x
+		x = self.triangular_mult_incoming(x) + x
+
+		# pass pairwise rep through attention module
 		prw_rep = self.pair_stack(x) + x
 		return prw_rep, msa_rep
 
 class PSSM_Projector(nn.Module):
+	'''
+	model to project pssm data to 16 layers
+	'''
 	def __init__(self, num_layers, c_m):
 		super().__init__()
 		layers = [nn.Linear(21, c_m) for i in range(num_layers)]
@@ -242,12 +256,16 @@ class PSSM_Projector(nn.Module):
 	
 	def forward(self, x):
 		out = torch.zeros((x.shape[0], self.num_layers, x.shape[1], self.c_m))
+		# for each batch, apply a linear layer to pssm data
 		for i in range(x.shape[0]):
 			for j, l in enumerate(self.layers):
 				out[i,j] = l(x[i])
 		return out
 
 class Input_Feature_Projector(nn.Module):
+	'''
+	projects the input features to c_2 features
+	'''
 	def __init__(self, c_2):
 		super().__init__()
 		self.c_2 = c_2
@@ -255,14 +273,19 @@ class Input_Feature_Projector(nn.Module):
 		self.l2 = nn.Linear(21, c_2)
 	
 	def forward(self, x):
+		# pass input thorugh linear layers
 		x1 = self.l1(x)
 		x2 = self.l2(x)
 		return x1, x2
 
 class Residue_Index_Projector(nn.Module):
+	'''
+	projects onehot residue input to c_2 features
+	'''
 	def __init__(self, c_2):
 		super().__init__()
 		self.l = nn.Linear(65, c_2)
 	
 	def forward(self, x):
+		# pass through linear layer
 		return self.l(x)
