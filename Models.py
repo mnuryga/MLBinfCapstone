@@ -340,8 +340,14 @@ class Evo_Model(nn.Module):
 		super().__init__()
 		self.rep_proj = Representation_Projector(r, s, c_m, c_z, device = device)
 		self.evoformer_trunk = Evoformer_Trunk(batch_size, c_m, c_z, c, device = device)
+		self.proj_dmat = nn.Conv2d(c_z, 64, 1)
+		self.angs_pool = nn.MaxPool2d((1, 64))
+		self.proj_angs = nn.Conv2d(c_z, 1296, 1)
 	
 	def forward(self, seqs, evos):
 		prw_rep, msa_rep = self.rep_proj(seqs, evos)
 		prw_rep, msa_rep = self.evoformer_trunk(prw_rep, msa_rep)
-		return prw_rep, msa_rep
+		c_first = rearrange(prw_rep, 'b i j c -> b c i j')
+		pred_dmat = self.proj_dmat(c_first)
+		pred_angs = self.proj_angs(self.angs_pool(c_first))
+		return pred_dmat, pred_angs.squeeze(-1)

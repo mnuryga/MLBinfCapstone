@@ -61,19 +61,19 @@ def main():
 	for epoch in range(num_epochs):
 		evoformer.train()
 		sum_loss = 0
-		for t_batch_idx, (seqs, evos, dmats, dmat_masks) in enumerate(tqdm(train_loader, disable = True)):
+		for t_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(train_loader, disable = True)):
 			# send batch to device
-			seqs, evos, dmats, dmat_masks = seqs.to(device), evos.to(device), dmats.to(device), dmat_masks.to(device)
+			seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
 			optimizer.zero_grad()
 
 			# run forward pass and cross entropy loss - reduction is none, so
 			# loss output is a batch*crop_size*crop_size tensor
-			prw_crops, msa_crops = evoformer(seqs, evos)
-			loss = loss_func(rearrange(prw_crops, 'b i j c -> b c i j'), dmats.long())
-
+			pred_dmat, pred_angs = evoformer(seqs, evos)
+			dmat_loss = loss_func(pred_dmat, dmat.long())
+			angs_loss = loss_func(pred_angs, angs.long())
 			# multiply loss output element-wise by mask and take the mean
-			# loss = loss.mul(dmat_masks)
-			loss = torch.mean(loss)
+			# loss = loss.mul(dmat_mask)
+			loss = torch.mean(dmat_loss)+torch.mean(angs_loss)
 
 			# run backward pass and sum current loss
 			loss.backward()
@@ -93,28 +93,22 @@ def main():
 				torch.save(checkpoint, f'checkpoints/best.pth')
 
 		# VALIDATION
-		valid_count = 0
 		valid_loss = 0
 		evoformer.eval()
 		with torch.no_grad():
-			print('starting validation')
-			for v_batch_idx, (prw_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(valid_loader)):
-				print('loopy validation')
+			for v_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(valid_loader, disable = True)):
 				# send batch to device
-				prw_crops, msa_crops, dmats, dmat_masks = prw_crops.to(device), msa_crops.to(device), dmats.to(device), dmat_masks.to(device)
+				seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
 
 				# run forward pass and cross entropy loss - reduction is none, so
 				# loss output is a batch*crop_size*crop_size tensor
-				prw_crops, msa_crops = evoformer(rearrange(prw_crops, 'b i j c -> b c i j'), msa_crops)
-				loss = loss_func(rearrange(prw_crops, 'b i j c -> b c i j'), dmats.long())
-
+				pred_dmat, pred_angs = evoformer(seqs, evos)
+				dmat_loss = loss_func(pred_dmat, dmat.long())
+				angs_loss = loss_func(pred_angs, angs.long())
 				# multiply loss output element-wise by mask and take the mean
-				# loss = loss.mul(dmat_masks)
-				loss = torch.mean(loss)
+				# loss = loss.mul(dmat_mask)
+				loss = torch.mean(dmat_loss)+torch.mean(angs_loss)
 				valid_loss += loss.item()
-				valid_count += 1
-				print('HELLO')
-				print(valid_count)
 
 		# append current loss to prev_loss list
 		prev_loss.append(valid_loss)
@@ -122,8 +116,7 @@ def main():
 		# print out epoch stats
 		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-		print(f'valid count is {valid_count}')
-		print(f'\tValid loss per batch = {valid_loss/valid_count/batch_size:.6f}')
+		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size:.6f}')
 
 		# if valid_loss exceedes the 5-epoch rolling sum, break from training
 		if valid_loss > np.mean(prev_loss[-5:]):

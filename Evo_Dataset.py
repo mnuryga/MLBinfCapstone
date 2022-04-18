@@ -90,6 +90,9 @@ class Evo_Dataset(IterableDataset):
 
 			# discreteize dmat in 64 bins
 			dmats = torch.floor(torch.clamp(dmats, 2, 21.6875).sub(2).mul(3.2))
+			desc_angs = torch.floor(torch.add(angs, np.pi).mul(5))
+			angs = torch.zeros((angs.shape[0], angs.shape[1]))
+			angs = 36 * desc_angs[:, :, 0] + desc_angs[:, :, 1]
 
 			# pad data
 			seqs = F.pad(seqs, (0, 1, 0, self.r), 'constant', 0)
@@ -97,6 +100,7 @@ class Evo_Dataset(IterableDataset):
 			# masks = F.pad(masks, (0, self.r), 'constant', 0)
 			dmats = F.pad(dmats, (0, self.r, 0, self.r), 'constant', 0)
 			dmat_masks = F.pad(dmat_masks, (0, self.r, 0, self.r), 'constant', 0)
+			angs = F.pad(angs, (0, self.r), 'constant', 0)
 
 			# dmat is symmetrical, so we want to mask out all positions below the diagonal
 			for i in range(L):
@@ -153,25 +157,28 @@ class Evo_Dataset(IterableDataset):
 			# 			d[count] = dmat[i:i+self.r, i:i+self.r]
 			# 			n[count] = dmat_mask[i:i+self.r, i:i+self.r]
 			# 		yield p, m, d, n
-			for seq, evo, dmat, dmat_mask in zip(seqs, evos, dmats, dmat_masks):
+			for seq, evo, dmat, dmat_mask, ang in zip(seqs, evos, dmats, dmat_masks, angs):
 				# get crops of length r
 				# generate starting position for window
 				if not self.by_seq:
 					start_i = 0 if L < 64 else np.random.randint(0, 64)
 					for i in range(start_i, L, self.stride):
-						yield seq[i:i+self.r], evo[i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
+						yield seq[i:i+self.r], evo[i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r], ang[i:i+self.r]
 				else:
 					num_seq = (L+self.r)//self.stride
 					s = torch.zeros((num_seq, self.r, 21))
 					e = torch.zeros((num_seq, self.s, self.r, 21))
 					d = torch.zeros((num_seq, self.r, self.r))
 					n = torch.zeros((num_seq, self.r, self.r))
+					a = torch.zeros((num_seq, self.r))
 					count = 0
 					for i in range(i, L, self.stride):
 						s[count] = seq[i:i+self.r]
 						e[count] = evo[i:i+self.r]
 						d[count] = dmat[i:i+self.r, i:i+self.r]
 						n[count] = dmat_mask[i:i+self.r, i:i+self.r]
+						a[count] = ang[i:i+self.r]
+						count += 1
 					yield s, e, d, n
 
 
