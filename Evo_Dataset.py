@@ -9,8 +9,6 @@ import numpy as np
 from tqdm import tqdm
 import sys
 from einops import rearrange, reduce, repeat
-import numba
-from numba import jit
 
 from Models import PSSM_Projector
 from Models import Input_Feature_Projector
@@ -162,10 +160,10 @@ def main():
 	ds = Evo_Dataset('train', 128)
 	dl = DataLoader(dataset = ds, batch_size = 5, num_workers = 0,  drop_last = True)
 	for i, (pr, mr, dm, mm) in enumerate(dl):
-		print(f'{pr.shape = }')
-		print(f'{mr.shape = }')
-		print(f'{dm.shape = }')
-		print(f'{mm.shape = }')
+		print(f'pr.shape={pr.shape}')
+		print(f'mr.shape={mr.shape}')
+		print(f'dm.shape={dm.shape}')
+		print(f'mm.shape={mm.shape}')
 		sys.exit(0)
 
 if __name__ == '__main__':

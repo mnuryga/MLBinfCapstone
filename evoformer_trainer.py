@@ -13,7 +13,9 @@ from Evo_Dataset import Evo_Dataset
 from Models import Evoformer
 
 # CONSTANTS
-batch_size = 4
+num_gpu = 4
+batch_size = 64 * num_gpu
+batch_size_gpu = batch_size // num_gpu
 r = 64
 c_m = 128
 c_z = 64
@@ -40,7 +42,7 @@ def main():
 	valid_dataset = Evo_Dataset('valid-10', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
 
-	evoformer = Evoformer(batch_size, c_m, c_z, c, device = device).to(device)
+	evoformer = nn.DataParallel(Evoformer(batch_size_gpu, c_m, c_z, c, device = device)).to(device)
 	evoformer.train()
 
 	# load state_dict from file if specified
