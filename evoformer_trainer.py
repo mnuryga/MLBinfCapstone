@@ -14,7 +14,7 @@ from Models import Evoformer
 
 # CONSTANTS
 num_gpu = 4
-batch_size = 64 * num_gpu
+batch_size = 16 * num_gpu
 batch_size_gpu = batch_size // num_gpu
 r = 64
 c_m = 128
@@ -36,10 +36,10 @@ def main():
 	print(f"using device: {device}")
 
 	# create datasets and dataloaders
-	train_dataset = Evo_Dataset('train', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
+	train_dataset = Evo_Dataset('train', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
 
-	valid_dataset = Evo_Dataset('valid-10', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
+	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
 
 	evoformer = nn.DataParallel(Evoformer(batch_size_gpu, c_m, c_z, c, device = device)).to(device)
@@ -72,7 +72,7 @@ def main():
 			loss = loss_func(rearrange(prw_crops, 'b i j c -> b c i j'), dmats.long())
 
 			# multiply loss output element-wise by mask and take the mean
-			loss = loss.mul(dmat_masks)
+			# loss = loss.mul(dmat_masks)
 			loss = torch.mean(loss)
 
 			# run backward pass and sum current loss
@@ -103,10 +103,10 @@ def main():
 				# run forward pass and cross entropy loss - reduction is none, so
 				# loss output is a batch*crop_size*crop_size tensor
 				prw_crops, msa_crops = evoformer(rearrange(prw_crops, 'b i j c -> b c i j'), msa_crops)
-				loss = loss_func(prw_crops, dmats.long())
+				loss = loss_func(rearrange(prw_crops, 'b i j c -> b c i j'), dmats.long())
 
 				# multiply loss output element-wise by mask and take the mean
-				loss = loss.mul(dmat_masks)
+				# loss = loss.mul(dmat_masks)
 				loss = torch.mean(loss)
 				valid_loss += loss.item()
 

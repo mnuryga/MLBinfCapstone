@@ -38,7 +38,7 @@ def main():
 	evo_model = evo_model.load_state_dict(torch.load('checkpoints/best_evoformer.pth')['state_dict'])
 
 	# create test dataset that batches by sequence
-	test_dataset = Evo_Dataset('test', stride, r, s, c_m, c_z, progress_bar, False, by_seq = True)
+	test_dataset = Evo_Dataset('test', stride, batch_size, r, s, c_m, c_z, progress_bar, False, by_seq = True)
 	test_loader = DataLoader(dataset = test_dataset, batch_size = 1, drop_last = True)
 
 	with torch.no_grad():
