@@ -217,7 +217,7 @@ class Triangular_Multiplicative_Model(nn.Module):
 				bj = b[:, :, j]
 				z[:, i, j] = torch.sum(torch.mul(ai, bj), dim = -2)
 		# z = torch.mul(g, self.lz(self.ln2(z)))
-		z = torch.mul(g, self.ln2(z))
+		z = torch.mul(g, self.lz(z))
 		return z
 
 class Evoformer(nn.Module):
