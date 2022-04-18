@@ -7,15 +7,15 @@ import sys
 from einops import rearrange
 
 class MHSA(nn.Module):
-    def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):
-        '''
-        Gated self-attention with or without pair bias
-        c_m: channel dim target attention
-        c_z: channel dim of the pair wise bias
-        heads: number of heads for the multi-head attention
-        dim_head: channel dim of each head
-        bias: Apply pair-wise bias or not
-        '''
+	def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):
+		'''
+		Gated self-attention with or without pair bias
+		c_m: channel dim target attention
+		c_z: channel dim of the pair wise bias
+		heads: number of heads for the multi-head attention
+		dim_head: channel dim of each head
+		bias: Apply pair-wise bias or not
+		'''
 		super().__init__()
 		self.bias = bias
 		self.dim_head = (int(c_m / heads)) if dim_head is None else dim_head
@@ -73,11 +73,11 @@ class MHSA(nn.Module):
 
 class MSA_Stack(nn.Module):
 	def __init__(self, batch_size, c_m, c_z, heads=8, dim_head=None, device = 'cpu'):
-        '''
-        Do a row-wise MHSA with pair bias follow by a column-wise 
-        MHSA without bias. The result is then passed through a two
-        layer MLP as transition.
-        '''
+		'''
+		Do a row-wise MHSA with pair bias follow by a column-wise 
+		MHSA without bias. The result is then passed through a two
+		layer MLP as transition.
+		'''
 		super().__init__()
 		self.device = device
 		# batches of row wise MHSA
@@ -109,10 +109,10 @@ class MSA_Stack(nn.Module):
 
 class Outer_Product_Mean(nn.Module):
 	def __init__(self, c_m, c_z, c=32, device = 'cpu'):
-        '''
-        Do a linear transform, column-wise outer product, mean, and finally 
-        another linear transform.
-        '''
+		'''
+		Do a linear transform, column-wise outer product, mean, and finally 
+		another linear transform.
+		'''
 		super().__init__()
 		self.device = device
 		# linear projections
@@ -149,11 +149,11 @@ class Outer_Product_Mean(nn.Module):
 
 class Pair_Stack(nn.Module):
 	def __init__(self, batch_size, c_z, heads=8, dim_head=None, device = 'cpu'):
-        '''
-        Do a row-wise MHSA with pair bias on the start edges follow
-        by a column-wise MHSA with bias on the end edes. The result 
-        is then passed through a two layer MLP as transition.
-        '''
+		'''
+		Do a row-wise MHSA with pair bias on the start edges follow
+		by a column-wise MHSA with bias on the end edes. The result 
+		is then passed through a two layer MLP as transition.
+		'''
 		super().__init__()
 		self.device = device
 		# batches of row wise MHSA
