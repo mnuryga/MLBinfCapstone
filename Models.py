@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 import numpy as np
 import sys
-from einops import rearrange
+from einops import rearrange, reduce, repeat
 
 class MHSA(nn.Module):
 	def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):
@@ -89,13 +89,13 @@ class MSA_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_m, c_m)
 		
 	def forward(self, x, bias_rep):
-		res = torch.empty(x.shape).to(x.get_device())
+		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.row_MHSA):
 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
 		x = x + res # add residuals
 		
-		res2 = torch.empty(x.shape).to(x.get_device())
+		res2 = torch.empty(x.shape).to(self.device)
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.col_MHSA):
@@ -126,7 +126,7 @@ class Outer_Product_Mean(nn.Module):
 		res: B x R x R x C
 		'''
 		# results
-		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(x.get_device())
+		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(self.device)
 		
 		# project in_c to out_c
 		x = self.fc1(x)
@@ -161,13 +161,13 @@ class Pair_Stack(nn.Module):
 		self.fc2 = nn.Linear(4 * c_z, c_z)
 		
 	def forward(self, x):
-		res = torch.empty(x.shape).to(x.get_device())
+		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i].clone(), x[i].clone())
 		x = x + res # add residuals
 		
-		res2 = torch.empty(x.shape).to(x.get_device())
+		res2 = torch.empty(x.shape).to(self.device)
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.end_MHSA):
@@ -205,7 +205,7 @@ class Triangular_Multiplicative_Model(nn.Module):
 			a = rearrange(a, 'b i j k -> b j i k')
 			b = rearrange(b, 'b i j k -> b j i k')
 		g = torch.sigmoid(self.lg(z))
-		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c)).to(x.get_device())
+		z = torch.zeros((z.shape[0], z.shape[1], z.shape[2], self.c)).to(self.device)
 		for i in range(a.shape[1]):
 			for j in range(b.shape[2]):
 				ai = a[:, i, :]
@@ -215,47 +215,20 @@ class Triangular_Multiplicative_Model(nn.Module):
 		z = torch.mul(g, self.lz(z))
 		return z
 
-class Evoformer(nn.Module):
-	'''
-	evoformer trunk as outlined in the alphafold2 paper
-	'''
-	def __init__(self, batch_size, c_m, c_z, c, device = 'cpu'):
-		super().__init__()
-		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c, device = device)
-		self.outer_product_mean = Outer_Product_Mean(c_m, c_z, c = c, device = device)
-		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing', c_z = c_z, c = c, device = device)
-		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming', c_z = c_z, c = c, device = device)
-		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c, device = device)
-
-	def forward(self, prw_rep, msa_rep):
-		# pass msa through attention module
-		msa_rep = self.msa_stack(msa_rep, prw_rep)
-
-		# calculate outer product of msa and add residual
-		x = self.outer_product_mean(msa_rep) + prw_rep
-
-		# pass through triangular multipication for 
-		# outgoing and incoming edges
-		x = self.triangular_mult_outgoing(x) + x
-		x = self.triangular_mult_incoming(x) + x
-
-		# pass pairwise rep through attention module
-		prw_rep = self.pair_stack(x) + x
-		return prw_rep, msa_rep
-
 class PSSM_Projector(nn.Module):
 	'''
 	model to project pssm data to 16 layers
 	'''
-	def __init__(self, num_layers, c_m):
+	def __init__(self, num_layers, c_m, device = 'cpu'):
 		super().__init__()
 		layers = [nn.Linear(21, c_m) for i in range(num_layers)]
 		self.layers = nn.ModuleList(layers)
 		self.c_m = c_m
 		self.num_layers = num_layers
+		self.device = device
 	
 	def forward(self, x):
-		out = torch.zeros((x.shape[0], self.num_layers, x.shape[1], self.c_m))
+		out = torch.zeros((x.shape[0], self.num_layers, x.shape[1], self.c_m)).to(self.device)
 		# for each batch, apply a linear layer to pssm data
 		for i in range(x.shape[0]):
 			for j, l in enumerate(self.layers):
@@ -289,3 +262,86 @@ class Residue_Index_Projector(nn.Module):
 	def forward(self, x):
 		# pass through linear layer
 		return self.l(x)
+
+class Representation_Projector(nn.Module):
+	def __init__(self, r, s, c_m, c_z, device = 'cpu'):
+		super().__init__()
+		self.r = r
+		self.s = s
+		self.c_m = c_m
+		self.c_z = c_z
+		self.device = device
+		self.pssm_projector = PSSM_Projector(s, c_m, device = device)
+		self.input_feature_projector = Input_Feature_Projector(c_z)
+		self.residue_index_projector = Residue_Index_Projector(c_z)
+	
+	def forward(self, seqs, evos):
+		L = seqs.shape[1]
+		# get pssm data projections
+		msa_reps = self.pssm_projector(evos)
+
+		# get residue index and target feat projections
+		li, lj = self.input_feature_projector(seqs.float())
+
+		# calculate outer sum
+		li = repeat(li, 'b i c -> b rep i c', rep = L)
+		lj = repeat(lj, 'b i c -> b rep i c', rep = L)
+		lj = rearrange(lj, 'b i j c -> b j i c')
+		outer_sum = torch.add(li, lj)
+
+		# calculate relative positional encodings
+		all_res = torch.arange(L).to(self.device)
+		di = repeat(all_res, 'i -> rep i', rep = L)
+		dj = repeat(-all_res, 'j -> rep j', rep = L)
+		dj = rearrange(dj, 'i j -> j i')
+
+		# clamp differences and encode as onehot
+		d = torch.add(torch.clamp(torch.add(di, dj), -32, 32), 32)
+		d = F.one_hot(d)
+
+		# pass through linear layer
+		relpos_encoding = self.residue_index_projector(d.float())
+
+		# create pairwise representation
+		prw_reps = torch.add(outer_sum, relpos_encoding)
+
+		return prw_reps, msa_reps
+
+class Evoformer_Trunk(nn.Module):
+	'''
+	evoformer trunk as outlined in the alphafold2 paper
+	'''
+	def __init__(self, batch_size, c_m, c_z, c, device = 'cpu'):
+		super().__init__()
+		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c, device = device)
+		self.outer_product_mean = Outer_Product_Mean(c_m, c_z, c = c, device = device)
+		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing', c_z = c_z, c = c, device = device)
+		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming', c_z = c_z, c = c, device = device)
+		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c, device = device)
+
+	def forward(self, prw_rep, msa_rep):
+		# pass msa through attention module
+		msa_rep = self.msa_stack(msa_rep, prw_rep)
+
+		# calculate outer product of msa and add residual
+		x = self.outer_product_mean(msa_rep) + prw_rep
+
+		# pass through triangular multipication for 
+		# outgoing and incoming edges
+		x = self.triangular_mult_outgoing(x) + x
+		x = self.triangular_mult_incoming(x) + x
+
+		# pass pairwise rep through attention module
+		prw_rep = self.pair_stack(x) + x
+		return prw_rep, msa_rep
+
+class Evo_Model(nn.Module):
+	def __init__(self, batch_size, r, s, c_m, c_z, c, device = 'cpu'):
+		super().__init__()
+		self.rep_proj = Representation_Projector(r, s, c_m, c_z, device = device)
+		self.evoformer_trunk = Evoformer_Trunk(batch_size, c_m, c_z, c, device = device)
+	
+	def forward(self, seqs, evos):
+		prw_rep, msa_rep = self.rep_proj(seqs, evos)
+		prw_rep, msa_rep = self.evoformer_trunk(prw_rep, msa_rep)
+		return prw_rep, msa_rep

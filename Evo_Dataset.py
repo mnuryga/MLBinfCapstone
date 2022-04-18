@@ -102,60 +102,77 @@ class Evo_Dataset(IterableDataset):
 			for i in range(L):
 				dmat_masks[:i] = 0
 
-			# get PSSM data projections
-			# CHANGE THIS 
-			# FIRST ROW IS EVOS
-			with torch.no_grad():
-				msa_reps = self.pssm_projector(evos)
+			# # get PSSM data projections
+			# # CHANGE THIS 
+			# # FIRST ROW IS EVOS
+			# msa_reps = self.pssm_projector(evos)
 
-			# get residue index and target feat projections
-			with torch.no_grad():
-				li, lj = self.input_feature_projector(seqs.float())
+			# # get residue index and target feat projections
+			# li, lj = self.input_feature_projector(seqs.float())
 
-			# calculate outer sum
-			li = repeat(li, 'b i c -> b rep i c', rep = L + self.r)
-			lj = repeat(lj, 'b i c -> b rep i c', rep = L + self.r)
-			lj = rearrange(lj, 'b i j c -> b j i c')
-			outer_sum = torch.add(li, lj)
+			# # calculate outer sum
+			# li = repeat(li, 'b i c -> b rep i c', rep = L + self.r)
+			# lj = repeat(lj, 'b i c -> b rep i c', rep = L + self.r)
+			# lj = rearrange(lj, 'b i j c -> b j i c')
+			# outer_sum = torch.add(li, lj)
 
-			# calculate relative positional encodings
-			all_res = torch.arange(L+self.r)
-			di = repeat(all_res, 'i -> rep i', rep = L + self.r)
-			dj = repeat(-all_res, 'j -> rep j', rep = L + self.r)
-			dj = rearrange(dj, 'i j -> j i')
+			# # calculate relative positional encodings
+			# all_res = torch.arange(L+self.r)
+			# di = repeat(all_res, 'i -> rep i', rep = L + self.r)
+			# dj = repeat(-all_res, 'j -> rep j', rep = L + self.r)
+			# dj = rearrange(dj, 'i j -> j i')
 
-			# clamp differences and encode as onehot
-			d = torch.add(torch.clamp(torch.add(di, dj), -32, 32), 32)
-			d = F.one_hot(d)
+			# # clamp differences and encode as onehot
+			# d = torch.add(torch.clamp(torch.add(di, dj), -32, 32), 32)
+			# d = F.one_hot(d)
 
-			# pass through linear layer
-			with torch.no_grad():
-				relpos_encoding = self.residue_index_projector(d.float())
+			# # pass through linear layer
+			# relpos_encoding = self.residue_index_projector(d.float())
 
-			# create pairwise representation
-			pairwise_reps = torch.add(outer_sum, relpos_encoding)
+			# # create pairwise representation
+			# pairwise_reps = torch.add(outer_sum, relpos_encoding)
 
 			# for each sequence of length L
-			for pairwise_rep, msa_rep, dmat, dmat_mask in zip(pairwise_reps, msa_reps, dmats, dmat_masks):
+			# for pairwise_rep, msa_rep, dmat, dmat_mask in zip(pairwise_reps, msa_reps, dmats, dmat_masks):
+			# 	# get crops of length r
+			# 	# generate starting position for window
+			# 	if not self.by_seq:
+			# 		start_i = 0 if L < 64 else np.random.randint(0, 64)
+			# 		for i in range(start_i, L, self.stride):
+			# 			yield pairwise_rep[i:i+self.r, i:i+self.r], msa_rep[:, i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
+			# 	else:
+			# 		num_seq = (L+self.r)//self.stride
+			# 		p = torch.zeros((num_seq, self.r, self.r, self.c_z))
+			# 		m = torch.zeros((num_seq, self.s, self.r, self.c_m))
+			# 		d = torch.zeros((num_seq, self.r, self.r))
+			# 		n = torch.zeros((num_seq, self.r, self.r))
+			# 		count = 0
+			# 		for i in range(i, L, self.stride):
+			# 			p[count] = pairwise_rep[i:i+self.r, i:i+self.r]
+			# 			m[count] = msa_rep[:, i:i+self.r]
+			# 			d[count] = dmat[i:i+self.r, i:i+self.r]
+			# 			n[count] = dmat_mask[i:i+self.r, i:i+self.r]
+			# 		yield p, m, d, n
+			for seq, evo, dmat, dmat_mask in zip(seqs, evos, dmats, dmat_masks):
 				# get crops of length r
 				# generate starting position for window
 				if not self.by_seq:
 					start_i = 0 if L < 64 else np.random.randint(0, 64)
 					for i in range(start_i, L, self.stride):
-						yield pairwise_rep[i:i+self.r, i:i+self.r], msa_rep[:, i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
+						yield seq[i:i+self.r], evo[i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
 				else:
 					num_seq = (L+self.r)//self.stride
-					p = torch.zeros((num_seq, self.r, self.r, self.c_z))
-					m = torch.zeros((num_seq, self.s, self.r, self.c_m))
+					s = torch.zeros((num_seq, self.r, 21))
+					e = torch.zeros((num_seq, self.s, self.r, 21))
 					d = torch.zeros((num_seq, self.r, self.r))
 					n = torch.zeros((num_seq, self.r, self.r))
 					count = 0
 					for i in range(i, L, self.stride):
-						p[count] = pairwise_rep[i:i+self.r, i:i+self.r]
-						m[count] = msa_rep[:, i:i+self.r]
+						s[count] = seq[i:i+self.r]
+						e[count] = evo[i:i+self.r]
 						d[count] = dmat[i:i+self.r, i:i+self.r]
 						n[count] = dmat_mask[i:i+self.r, i:i+self.r]
-					yield p, m, d, n
+					yield s, e, d, n
 
 
 # main function for testing

@@ -10,10 +10,10 @@ from tqdm import tqdm
 from einops import rearrange
 
 from Evo_Dataset import Evo_Dataset
-from Models import Evoformer
+from Models import Evo_Model
 
 # CONSTANTS
-num_gpu = 4
+num_gpu = 1
 batch_size = 16 * num_gpu
 batch_size_gpu = batch_size // num_gpu
 r = 64
@@ -42,7 +42,7 @@ def main():
 	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
 
-	evoformer = nn.DataParallel(Evoformer(batch_size_gpu, c_m, c_z, c, device = device)).to(device)
+	evoformer = nn.DataParallel(Evo_Model(batch_size_gpu, r, s, c_m, c_z, c, device = device), device_ids = [0]).to(device)
 	evoformer.train()
 
 	# load state_dict from file if specified
@@ -57,18 +57,18 @@ def main():
 	# once validation loss is above a 5-epoch rolling mean
 	prev_loss = []
 
-# 	# TRAINING
+	# TRAINING
 	for epoch in range(num_epochs):
 		evoformer.train()
 		sum_loss = 0
-		for t_batch_idx, (prw_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(train_loader, disable = True)):
+		for t_batch_idx, (seqs, evos, dmats, dmat_masks) in enumerate(tqdm(train_loader, disable = True)):
 			# send batch to device
-			prw_crops, msa_crops, dmats, dmat_masks = prw_crops.to(device), msa_crops.to(device), dmats.to(device), dmat_masks.to(device)
+			seqs, evos, dmats, dmat_masks = seqs.to(device), evos.to(device), dmats.to(device), dmat_masks.to(device)
 			optimizer.zero_grad()
 
 			# run forward pass and cross entropy loss - reduction is none, so
 			# loss output is a batch*crop_size*crop_size tensor
-			prw_crops, msa_crops = evoformer(prw_crops, msa_crops)
+			prw_crops, msa_crops = evoformer(seqs, evos)
 			loss = loss_func(rearrange(prw_crops, 'b i j c -> b c i j'), dmats.long())
 
 			# multiply loss output element-wise by mask and take the mean
@@ -76,7 +76,7 @@ def main():
 			loss = torch.mean(loss)
 
 			# run backward pass and sum current loss
-			loss.backward(retain_graph=True)
+			loss.backward()
 			sum_loss += loss.item()
 			
 			# step optimizer
