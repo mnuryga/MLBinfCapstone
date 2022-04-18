@@ -92,14 +92,15 @@ class MSA_Stack(nn.Module):
 		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.row_MHSA):
-			res[i] = mhsa(x[i], bias_rep[i])
+			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
 		x += res # add residuals
 		
+		res2 = torch.empty(x.shape).to(self.device)
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.col_MHSA):
-			res[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
-		x += res # add residuals
+			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
+		x += res2 # add residuals
 		
 		# transiion
 		r = F.relu(self.fc1(x))
@@ -168,15 +169,16 @@ class Pair_Stack(nn.Module):
 		res = torch.empty(x.shape).to(self.device)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
-			res[i] = mhsa(x[i], x[i])
+			res[i] = mhsa(x[i].clone(), x[i].clone())
 		x += res # add residuals
 		
+		res2 = torch.empty(x.shape).to(self.device)
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.end_MHSA):
 			# res[i] = mhsa(x_trans[i], x_trans[i])
-			res[i] = rearrange(mhsa(x_trans[i], x_trans[i]), 'i j k -> j i k')
-		x += res # add residuals
+			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
+		x += res2 # add residuals
 		
 		# transiion
 		r = F.relu(self.fc1(x))
