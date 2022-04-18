@@ -57,7 +57,7 @@ def main():
 	# once validation loss is above a 5-epoch rolling mean
 	prev_loss = []
 
-	# TRAINING
+# 	# TRAINING
 	for epoch in range(num_epochs):
 		evoformer.train()
 		sum_loss = 0
@@ -93,10 +93,13 @@ def main():
 				torch.save(checkpoint, f'checkpoints/best.pth')
 
 		# VALIDATION
+		valid_count = 0
 		valid_loss = 0
 		evoformer.eval()
 		with torch.no_grad():
-			for v_batch_idx, (prw_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(valid_loader, disable = True)):
+			print('starting validation')
+			for v_batch_idx, (prw_crops, msa_crops, dmats, dmat_masks) in enumerate(tqdm(valid_loader)):
+				print('loopy validation')
 				# send batch to device
 				prw_crops, msa_crops, dmats, dmat_masks = prw_crops.to(device), msa_crops.to(device), dmats.to(device), dmat_masks.to(device)
 
@@ -109,6 +112,9 @@ def main():
 				loss = loss.mul(dmat_masks)
 				loss = torch.mean(loss)
 				valid_loss += loss.item()
+				valid_count += 1
+				print('HELLO')
+				print(valid_count)
 
 		# append current loss to prev_loss list
 		prev_loss.append(valid_loss)
@@ -116,7 +122,8 @@ def main():
 		# print out epoch stats
 		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size:.6f}')
+		print(f'valid count is {valid_count}')
+		print(f'\tValid loss per batch = {valid_loss/valid_count/batch_size:.6f}')
 
 		# if valid_loss exceedes the 5-epoch rolling sum, break from training
 		if valid_loss > np.mean(prev_loss[-5:]):
