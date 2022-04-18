@@ -34,14 +34,11 @@ def main():
 	print(f"using device: {device}")
 
 	# create datasets and dataloaders
-	train_dataset = Evo_Dataset('train', stride, r, s, c_m, c_z, progress_bar = progress_bar, USE_DEBUG_DATA = USE_DEBUG_DATA)
+	train_dataset = Evo_Dataset('train', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
 
-	valid_dataset = Evo_Dataset('valid-10', stride, r, s, c_m, c_z, progress_bar = progress_bar, USE_DEBUG_DATA = USE_DEBUG_DATA)
+	valid_dataset = Evo_Dataset('valid-10', stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
-
-	test_dataset = Evo_Dataset('test', stride, r, s, c_m, c_z, progress_bar = progress_bar, USE_DEBUG_DATA = USE_DEBUG_DATA)
-	test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size, drop_last = True)
 
 	evoformer = Evoformer(batch_size, c_m, c_z, c, device = device).to(device)
 	evoformer.train()

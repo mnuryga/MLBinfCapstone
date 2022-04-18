@@ -13,12 +13,9 @@ def funct(x):
 				i+j+k
 
 def main():
-	x = np.arange(int(sys.argv[1]))
-	# funct(x)
-	x = np.ones(10)
-	y = np.ones(10)
-
-	z = rearrange()
+	x = np.zeros((10, 20, 30))
+	y = np.zeros(*x.shape)
+	print(f'{y.shape = }')
 
 if __name__ == '__main__':
 	main()

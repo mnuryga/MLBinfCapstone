@@ -17,9 +17,9 @@ from Models import Input_Feature_Projector
 from Models import Residue_Index_Projector
 
 class Evo_Dataset(IterableDataset):
-	def __init__(self, key, stride, r, s, c_m, c_z, randomize_start = True, progress_bar = False, USE_DEBUG_DATA = False):
+	def __init__(self, key, stride, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA, by_seq = False):
 		super().__init__()
-		self.randomize_start = randomize_start
+		self.by_seq = by_seq
 		self.progress_bar = progress_bar
 		self.key = key
 		self.stride = stride
@@ -136,9 +136,23 @@ class Evo_Dataset(IterableDataset):
 			for pairwise_rep, msa_rep, dmat, dmat_mask in zip(pairwise_reps, msa_reps, dmats, dmat_masks):
 				# get crops of length r
 				# generate starting position for window
-				start_i = 0 if L < 64 or not self.randomize_start else np.random.randint(0, 64)
-				for i in range(start_i, L, self.stride):
-					yield pairwise_rep[i:i+self.r, i:i+self.r], msa_rep[:, i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
+				if not self.by_seq:
+					start_i = 0 if L < 64 else np.random.randint(0, 64)
+					for i in range(start_i, L, self.stride):
+						yield pairwise_rep[i:i+self.r, i:i+self.r], msa_rep[:, i:i+self.r], dmat[i:i+self.r, i:i+self.r], dmat_mask[i:i+self.r, i:i+self.r]
+				else:
+					num_seq = (L+self.r)//self.stride
+					p = torch.zeros((num_seq, self.r, self.r, self.c_z))
+					m = torch.zeros((num_seq, self.s, self.r, self.c_m))
+					d = torch.zeros((num_seq, self.r, self.r))
+					n = torch.zeros((num_seq, self.r, self.r))
+					count = 0
+					for i in range(i, L, self.stride):
+						p[count] = pairwise_rep[i:i+self.r, i:i+self.r]
+						m[count] = msa_rep[:, i:i+self.r]
+						d[count] = dmat[i:i+self.r, i:i+self.r]
+						n[count] = dmat_mask[i:i+self.r, i:i+self.r]
+					yield p, m, d, n
 
 
 # main function for testing
