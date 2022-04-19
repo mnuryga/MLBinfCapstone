@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=weight_ln_3e_jobber
+#SBATCH --job-name=ln_6e_fixed
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=stevenjust4edu@gmail.com
 #SBATCH --time=300

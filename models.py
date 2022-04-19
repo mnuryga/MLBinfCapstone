@@ -72,7 +72,7 @@ class MHSA(nn.Module):
 		return self.W_0(out)
 
 class MSA_Stack(nn.Module):
-	def __init__(self, batch_size, c_m, c_z, heads=8, dim_head=None):
+	def __init__(self, c_m, c_z, heads=8, dim_head=None):
 		'''
 		Do batches of row-wise MHSA with pair bias follow by a column-wise 
 		MHSA without bias. The result is then passed through a two
@@ -82,9 +82,11 @@ class MSA_Stack(nn.Module):
 		'''
 		super().__init__()
 		# batches of row wise MHSA
-		self.row_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=None) for i in range(batch_size)])
+# 		self.row_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=None) for i in range(batch_size)])
+		self.row_MHSA = MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
 		# batches of col wise MHSA
-		self.col_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=False, dim_head=None) for i in range(batch_size)])
+# 		self.col_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=False, dim_head=None) for i in range(batch_size)])
+		self.col_MHSA = MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=False, dim_head=dim_head)
 		# transition MLP
 		self.fc1 = nn.Linear(c_m, 4 * c_m)
 		self.fc2 = nn.Linear(4 * c_m, c_m)
@@ -101,10 +103,16 @@ class MSA_Stack(nn.Module):
 		x = self.ln1(x)
 		bias_rep = self.ln2(bias_rep)
 
-		# row wise gated self-attention with pair bias
-		for i, mhsa in enumerate(self.row_MHSA):
-			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
+# 		# row wise gated self-attention with pair bias
+# 		for i, mhsa in enumerate(self.row_MHSA):
+# 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
+# 		x = x + res # add residuals
+
+		# row wise gated self-attention with pair bias, loop through batch
+		for i in range(x.shape[0]):
+			res[i] = self.row_MHSA(x[i].clone(), bias_rep[i].clone())
 		x = x + res # add residuals
+
 		
 		# results
 		res2 = torch.empty(x.shape).to(x.get_device())
@@ -112,11 +120,18 @@ class MSA_Stack(nn.Module):
 		# layer norms
 		x = self.ln3(x)
 
+# 		# column wise gated self-attention
+# 		x_trans = rearrange(x, 'b i j k -> b j i k')
+# 		for i, mhsa in enumerate(self.col_MHSA):
+# 			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
+# 		x = x + res2 # add residuals
+
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
-		for i, mhsa in enumerate(self.col_MHSA):
-			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
+		for i in range(x_trans.shape[0]):
+			res2[i] = rearrange(self.col_MHSA(x_trans[i]), 'i j k -> j i k')
 		x = x + res2 # add residuals
+
 		
 		# transiion
 		r = F.relu(self.fc1(x))
@@ -169,7 +184,7 @@ class Outer_Product_Mean(nn.Module):
 		return res
 				
 class Pair_Stack(nn.Module):
-	def __init__(self, batch_size, c_z, heads=8, dim_head=None):
+	def __init__(self, c_z, heads=8, dim_head=None):
 		'''
 		Do a row-wise MHSA with pair bias on the start edges follow
 		by a column-wise MHSA with bias on the end edes. The result 
@@ -179,9 +194,11 @@ class Pair_Stack(nn.Module):
 		'''
 		super().__init__()
 		# batches of row wise MHSA
-		self.start_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
+		self.start_MHSA = MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
+# 		self.start_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
 		# batches of col wise MHSA
-		self.end_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
+		self.end_MHSA = MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
+# 		self.end_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
 		# transition MLP
 		self.fc1 = nn.Linear(c_z, 4 * c_z)
 		self.fc2 = nn.Linear(4 * c_z, c_z)
@@ -196,10 +213,16 @@ class Pair_Stack(nn.Module):
 		# layer norms
 		x = self.ln1(x)
 
+# 		# row wise gated self-attention with pair bias
+# 		for i, mhsa in enumerate(self.start_MHSA):
+# 			res[i] = mhsa(x[i].clone(), x[i].clone())
+# 		x = x + res # add residuals
+
 		# row wise gated self-attention with pair bias
-		for i, mhsa in enumerate(self.start_MHSA):
-			res[i] = mhsa(x[i].clone(), x[i].clone())
+		for i in range(x.shape[0]):
+			res[i] = self.start_MHSA(x[i].clone(), x[i].clone())
 		x = x + res # add residuals
+
 		
 		# results
 		res2 = torch.empty(x.shape).to(x.get_device())
@@ -207,11 +230,18 @@ class Pair_Stack(nn.Module):
 		# layer norms
 		x = self.ln2(x)
 
+# 		# column wise gated self-attention
+# 		x_trans = rearrange(x, 'b i j k -> b j i k')
+# 		for i, mhsa in enumerate(self.end_MHSA):
+# 			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
+# 		x = x + res2 # add residuals
+
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
-		for i, mhsa in enumerate(self.end_MHSA):
-			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
+		for i in range(x_trans.shape[0]):
+			res2[i] = rearrange(self.end_MHSA(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
 		x = x + res2 # add residuals
+
 		
 		# transiion
 		r = F.relu(self.fc1(x))
@@ -367,13 +397,13 @@ class Evoformer_Trunk(nn.Module):
 
 	Author: Matthew Uryga
 	'''
-	def __init__(self, batch_size, c_m, c_z, c):
+	def __init__(self, c_m, c_z, c):
 		super().__init__()
-		self.msa_stack = MSA_Stack(batch_size, c_m, c_z, heads = 4, dim_head = c)
+		self.msa_stack = MSA_Stack(c_m, c_z, heads = 4, dim_head = c)
 		self.outer_product_mean = Outer_Product_Mean(c_m, c_z, c = c)
 		self.triangular_mult_outgoing = Triangular_Multiplicative_Model('outgoing', c_z = c_z, c = c)
 		self.triangular_mult_incoming = Triangular_Multiplicative_Model('incoming', c_z = c_z, c = c)
-		self.pair_stack = Pair_Stack(batch_size, c_z, heads = 4, dim_head = c)
+		self.pair_stack = Pair_Stack(c_z, heads = 4, dim_head = c)
 
 	def forward(self, prw_rep, msa_rep):
 		# pass msa through attention module
@@ -399,10 +429,10 @@ class Evo_Model(nn.Module):
 
 	Author: Matthew Uryga
 	'''
-	def __init__(self, batch_size, r, s, c_m, c_z, c):
+	def __init__(self, r, s, c_m, c_z, c):
 		super().__init__()
 		self.rep_proj = Representation_Projector(r, s, c_m, c_z)
-		self.evoformer_trunk = Evoformer_Trunk(batch_size, c_m, c_z, c)
+		self.evoformer_trunk = Evoformer_Trunk(c_m, c_z, c)
 		self.proj_dmat = nn.Conv2d(c_z, 64, 1)
 		self.angs_pool = nn.MaxPool2d((1, 64))
 		self.proj_angs = nn.Conv2d(c_z, 1296, 1)
