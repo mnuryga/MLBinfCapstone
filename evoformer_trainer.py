@@ -24,8 +24,8 @@ c = 8
 s = 8
 
 stride = 64
-num_epochs = 100
-learning_rate = 0.01
+num_epochs = 6
+learning_rate = 0.001
 progress_bar = True
 save_to_file = True
 load_from_file = False
@@ -71,17 +71,6 @@ def main():
 			pred_dmat, pred_angs = evoformer(seqs, evos)
 			dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
 			angs_loss = loss_func(pred_angs, angs.long())
-            
-			# early stop if nan is detected in loss
-			has_anomaly = False
-			if torch.isnan(dmat_loss).any().item():
-				print(f'dmat_loss contains NAN, aborting...')
-				has_anomaly = True
-			if torch.isnan(angs_loss).any().item():
-				print(f'angs_loss contains NAN, aborting...')
-				has_anomaly = True
-			if has_anomaly:
-				sys.exit(1)
 
 			# multiply loss output element-wise by mask and take the mean
 			# loss = loss.mul(dmat_mask)
@@ -90,6 +79,11 @@ def main():
 			# run backward pass and sum current loss
 			loss.backward()
 			sum_loss += loss.item()
+   
+			# check if loss is nan
+			if torch.isnan(loss).any().item():
+				print('loss is nan')
+				sys.exit(1)
 			
 			# step optimizer
 			optimizer.step()
@@ -132,11 +126,11 @@ def main():
 		# print out epoch stats
 		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-		print(f'\tValid loss per batch = {4*valid_loss/v_batch_idx/batch_size:.6f}')
+		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size_valid:.6f}')
 
-		# if valid_loss exceedes the 5-epoch rolling mean, break from training
-		if valid_loss > np.mean(prev_loss[-5:]):
-			break
+		# if valid_loss exceedes the 5-epoch rolling sum, break from training
+# 		if valid_loss > np.mean(prev_loss[-5:]):
+# 			break
 
 
 if __name__ == '__main__':
