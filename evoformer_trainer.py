@@ -29,7 +29,7 @@ learning_rate = 0.01
 progress_bar = True
 save_to_file = True
 load_from_file = False
-USE_DEBUG_DATA = True
+USE_DEBUG_DATA = False
 
 def main():
 	# get device
