@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 import numpy as np
 import sys
-from einops import rearrange, reduce, repeat
+from einops import rearrange, repeat
 
 class MHSA(nn.Module):
 	def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):

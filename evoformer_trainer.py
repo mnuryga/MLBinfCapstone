@@ -37,10 +37,10 @@ def main():
 	print(f"using device: {device}")
 
 	# create datasets and dataloaders
-	train_dataset = Evo_Dataset('train', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
+	train_dataset = Evo_Dataset('train', stride, batch_size, r, progress_bar, USE_DEBUG_DATA)
 	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
 
-	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
+	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size_valid, drop_last = True)
 
 	evoformer = nn.DataParallel(Evo_Model(batch_size_gpu, r, s, c_m, c_z, c)).to(device)
@@ -124,7 +124,7 @@ def main():
 		prev_loss.append(valid_loss)
 
 		# print out epoch stats
-		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
+		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:07,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
 		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size_valid:.6f}')
 

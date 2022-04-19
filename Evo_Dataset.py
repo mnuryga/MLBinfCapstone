@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import IterableDataset
 from torch.utils.data import DataLoader
@@ -8,40 +7,21 @@ import sidechainnet as scn
 import numpy as np
 from tqdm import tqdm
 import sys
-from einops import rearrange, reduce, repeat
-
-from Models import PSSM_Projector
-from Models import Input_Feature_Projector
-from Models import Residue_Index_Projector
 
 class Evo_Dataset(IterableDataset):
-	def __init__(self, key, stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA, by_seq = False):
+	def __init__(self, key, stride, batch_size, r, progress_bar, USE_DEBUG_DATA, by_seq = False):
 		super().__init__()
 		self.by_seq = by_seq
 		self.progress_bar = progress_bar
 		self.key = key
 		self.stride = stride
 		self.r = r
-		self.s = s
-		self.c_m = c_m
-		self.c_z = c_z
-		self.pad2d = nn.ZeroPad2d((0, r, 0, r))
 		if USE_DEBUG_DATA:
 			self.data = scn.load('debug', with_pytorch="dataloaders", seq_as_onehot=True,
 				aggregate_model_input=False, batch_size=batch_size, num_workers = 0)
 		else:
 			self.data = scn.load(casp_version = 7, with_pytorch="dataloaders", seq_as_onehot=True,
 				aggregate_model_input=False, batch_size=batch_size, num_workers = 0)
-
-		# CHECK IF THIS WILL BACKPROP PROPERLY
-		self.pssm_projector = PSSM_Projector(s, c_m)
-		self.input_feature_projector = Input_Feature_Projector(c_z)
-		self.residue_index_projector = Residue_Index_Projector(c_z)
-
-	def pad1d(x):
-		out = torch.zeros(len(x)+self.r)
-		out[:len(x)] = x
-		return out
 
 	@staticmethod
 	def get_seq_features(batch):
@@ -128,7 +108,7 @@ class Evo_Dataset(IterableDataset):
 						n[count] = dmat_mask[i:i+self.r, i:i+self.r]
 						a[count] = ang[i:i+self.r]
 						count += 1
-					yield s, e, d, n, a, dmat_mask
+					yield s, e, d, n, a, dmat, dmat_mask
 
 
 # main function for testing
