@@ -25,11 +25,11 @@ s = 8
 
 stride = 64
 num_epochs = 100
-learning_rate = 0.01
+learning_rate = 0.001
 progress_bar = True
 save_to_file = True
 load_from_file = False
-USE_DEBUG_DATA = False
+USE_DEBUG_DATA = True
 
 def main():
 	# get device
