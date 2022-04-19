@@ -128,7 +128,7 @@ class Evo_Dataset(IterableDataset):
 						n[count] = dmat_mask[i:i+self.r, i:i+self.r]
 						a[count] = ang[i:i+self.r]
 						count += 1
-					yield s, e, d, n, a
+					yield s, e, d, n, a, dmat_mask
 
 
 # main function for testing

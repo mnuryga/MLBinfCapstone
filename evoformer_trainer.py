@@ -69,7 +69,7 @@ def main():
 			# run forward pass and cross entropy loss - reduction is none, so
 			# loss output is a batch*crop_size*crop_size tensor
 			pred_dmat, pred_angs = evoformer(seqs, evos)
-			dmat_loss = loss_func(pred_dmat.mul(dmat_mask.long()), dmat.long())
+			dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
 			angs_loss = loss_func(pred_angs, angs.long())
             
 			# early stop if nan is detected in loss
@@ -119,7 +119,7 @@ def main():
 				# run forward pass and cross entropy loss - reduction is none, so
 				# loss output is a batch*crop_size*crop_size tensor
 				pred_dmat, pred_angs = evoformer_valid(seqs, evos)
-				dmat_loss = loss_func(pred_dmat.mul(dmat_mask.long()), dmat.long())
+				dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
 				angs_loss = loss_func(pred_angs, angs.long())
 				# multiply loss output element-wise by mask and take the mean
 				# loss = loss.mul(dmat_mask)
@@ -134,7 +134,7 @@ def main():
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
 		print(f'\tValid loss per batch = {4*valid_loss/v_batch_idx/batch_size:.6f}')
 
-		# if valid_loss exceedes the 5-epoch rolling sum, break from training
+		# if valid_loss exceedes the 5-epoch rolling mean, break from training
 		if valid_loss > np.mean(prev_loss[-5:]):
 			break
 

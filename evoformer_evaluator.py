@@ -9,6 +9,7 @@ import sys
 from tqdm import tqdm
 from einops import rearrange
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from Evo_Dataset import Evo_Dataset
 from Models import Evo_Model
@@ -24,6 +25,10 @@ s = 8
 
 stride = 32
 progress_bar = True
+threshold = False
+
+# what L/k values are being used for accuracy calculation
+seq_ks = [1, 2, 5, 10, 20, 50, 100]
 
 def main():
 	# get device
@@ -116,10 +121,10 @@ def main():
 		sum_loss = 0
 		# each batch from the test_loader will contain crops from the same sequence
 		# these crops do not have a randomized starting position
-		for t_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(test_loader, disable = True)):
+		for batch_idx, (seqs, evos, dmat, dmat_mask, angs, full_mask) in enumerate(tqdm(test_loader, disable = True)):
 			# send batch to device
-			seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
-			seqs, evos, dmat, dmat_mask, angs = seqs.squeeze(), evos.squeeze(), dmat.squeeze(), dmat_mask.squeeze(), angs.squeeze()
+			seqs, evos, dmat, dmat_mask, angs, full_mask = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device), full_mask.to(device)
+			seqs, evos, dmat, dmat_mask, angs, full_mask = seqs.squeeze(), evos.squeeze(), dmat.squeeze(), dmat_mask.squeeze(), angs.squeeze(), full_mask.squeeze()
 
 			B = seqs.shape[0]
 			L = (B-1)*(r-stride)
@@ -139,7 +144,7 @@ def main():
 				pred_dmat[i] = pd
 				pred_angs[i] = pa
 
-			dmat_loss = loss_func(pred_dmat.mul(dmat_mask), dmat.long())
+			dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask)
 			angs_loss = loss_func(pred_angs, angs.long())
 
 			# add loss to running total
@@ -164,12 +169,40 @@ def main():
 			pred_seq_probs[:stride, :stride] *= 2
 			pred_seq_probs[-stride:, -stride:] *= 2
 
-			# temp code to visualize the predicted contact map
-			pred_contacts = torch.round(torch.sum(pred_seq_probs[:, :, :20], dim = -1))
-			plt.imshow(dmat_mask[0].to('cpu').numpy(), cmap = 'Greys', interpolation = 'nearest')
-			plt.show()
-			sys.exit(0)
+			# determine which pairs are within contact of eachother 
+			contact_preds = torch.round(torch.sum(pred_seq_probs[:, :, :20], dim = -1))
+			contact_preds[full_mask == 0] = 0
 
+			# calculate contact labels
+			contact_labels = torch.zeros_like(contact_preds).to(device)
+			contact_labels[dmat < 20] = 1
+			contact_labels[mask == 0] = 0
+
+			# calculate accuracy over short, medium, and long contacts
+			short_accs.append(calc_mask_acc(contact_preds, short_mask, contact_labels, seq_ks, threshold = threshold))
+			med_accs.append(calc_mask_acc(contact_preds, med_mask, contact_labels, seq_ks, threshold = threshold))
+			long_accs.append(calc_mask_acc(contact_preds, long_mask, contact_labels, seq_ks, threshold = threshold))
+
+
+			# temp code to visualize the predicted contact map
+			# plt.imshow(contact_preds.to('cpu').numpy(), cmap = 'Greys', interpolation = 'nearest')
+			# plt.show()
+			# sys.exit(0)
+
+	# calculate mean for each L/k for each range
+	short_accs = np.mean(short_accs, axis = 0)
+	med_accs = np.mean(med_accs, axis = 0)
+	long_accs = np.mean(long_accs, axis = 0)
+
+	# put into dataframe for formatting
+	accs = {'short' : short_accs, 'med' : med_accs, 'long' : long_accs}
+	df = pd.DataFrame(data = accs, index = seq_ks)
+
+	# print test loss and accuracy
+	print(f'\nTest loss per crop: {sum_loss/batch_idx/num_crops:.6f}\n')
+	print('---Accuracies for L/k sequences--')
+	print(df)
+		
 
 
 if __name__ == '__main__':
