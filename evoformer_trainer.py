@@ -66,12 +66,12 @@ def main():
 			# send batch to device
 			seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
 			optimizer.zero_grad()
-
 			# run forward pass and cross entropy loss - reduction is none, so
 			# loss output is a batch*crop_size*crop_size tensor
 			pred_dmat, pred_angs = evoformer(seqs, evos)
 			dmat_loss = loss_func(pred_dmat, dmat.long())
 			angs_loss = loss_func(pred_angs, angs.long())
+
 			# multiply loss output element-wise by mask and take the mean
 			# loss = loss.mul(dmat_mask)
 			loss = torch.mean(dmat_loss)+torch.mean(angs_loss)
