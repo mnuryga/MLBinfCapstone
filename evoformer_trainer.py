@@ -11,6 +11,7 @@ from einops import rearrange
 
 from Evo_Dataset import Evo_Dataset
 from Models import Evo_Model
+import os
 
 # CONSTANTS
 num_gpu = 4
@@ -24,12 +25,13 @@ c = 8
 s = 8
 
 stride = 64
-num_epochs = 6
+num_epochs = 3
 learning_rate = 0.001
 progress_bar = True
 save_to_file = True
 load_from_file = False
 USE_DEBUG_DATA = True
+save_dir = './weight_ln_3e'
 
 def main():
 	# get device
@@ -96,11 +98,13 @@ def main():
 					'state_dict': evoformer.state_dict(),
 					'optimizer': optimizer.state_dict(),
 				}
-				torch.save(checkpoint, f'checkpoints/best.pth')
+				if not os.path.exists(save_dir):
+					os.makedirs(save_dir)
+				torch.save(checkpoint, f'{save_dir}/best.pth')
                 
         # load model for validation
 		evoformer_valid = nn.DataParallel(Evo_Model(batch_size_valid, r, s, c_m, c_z, c), device_ids=[0]).to(device)
-		evoformer_valid.load_state_dict(torch.load('checkpoints/best.pth')['state_dict'])
+		evoformer_valid.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
 		evoformer_valid.eval()
 
 		# VALIDATION

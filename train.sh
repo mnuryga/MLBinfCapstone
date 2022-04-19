@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH --job-name=low-lr-6-epoch-jobber
+#SBATCH --job-name=weight_ln_3e_jobber
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=stevenjust4edu@gmail.com
-#SBATCH --time=360
+#SBATCH --time=300
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:4
 #SBATCH --output=run_%j.out #append job id
