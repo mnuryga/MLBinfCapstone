@@ -71,6 +71,17 @@ def main():
 			pred_dmat, pred_angs = evoformer(seqs, evos)
 			dmat_loss = loss_func(pred_dmat, dmat.long())
 			angs_loss = loss_func(pred_angs, angs.long())
+            
+			# early stop if nan is detected in loss
+			has_anomaly = False
+			if torch.isnan(dmat_loss).any().item():
+				print(f'dmat_loss contains NAN, aborting...')
+				has_anomaly = True
+			if torch.isnan(angs_loss).any().item():
+				print(f'angs_loss contains NAN, aborting...')
+				has_anomaly = True
+			if has_anomaly:
+				sys.exit(1)
 
 			# multiply loss output element-wise by mask and take the mean
 			# loss = loss.mul(dmat_mask)
@@ -100,7 +111,6 @@ def main():
 
 		# VALIDATION
 		valid_loss = 0
-# 		evoformer.eval()
 		with torch.no_grad():
 			for v_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(valid_loader, disable = True)):
 				# send batch to device

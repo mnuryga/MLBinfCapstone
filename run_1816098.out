@@ -1,6 +1,0 @@
-using device: cuda:0
-SidechainNet was loaded from ./sidechainnet_data/sidechainnet_casp7_30.pkl.
-SidechainNet was loaded from ./sidechainnet_data/sidechainnet_casp7_30.pkl.
-  0%|          | 0/40 [00:00<?, ?it/s]/gpfs/u/home/MLI2/MLI2wngk/scratch/miniconda3/envs/binf2/lib/python3.7/site-packages/torch/nn/modules/module.py:1384: UserWarning: positional arguments and argument "destination" are deprecated. nn.Module.state_dict will not accept them in the future. Refer to https://pytorch.org/docs/master/generated/torch.nn.Module.html#torch.nn.Module.state_dict for details.
-  " and ".join(warn_msg) + " are deprecated. nn.Module.state_dict will not accept them in the future. "
-  2%|▎         | 1/40 [00:49<31:57, 49.17s/it]  5%|▌         | 2/40 [01:28<27:30, 43.43s/it]

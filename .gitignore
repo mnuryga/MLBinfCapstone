@@ -1,4 +1,4 @@
-/sidechainnet_data
-/checkpoints
-/__pycache__
+sidechainnet_data/
+__pycache__/
 checkpoints/
+*.out
