@@ -1,3 +1,8 @@
+'''
+Building blocks of the AlphaFold 2 model.
+
+Author: Matthew Uryga, Yu-Kai "Steven" Wang
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,6 +20,8 @@ class MHSA(nn.Module):
 		heads: number of heads for the multi-head attention
 		dim_head: channel dim of each head
 		bias: Apply pair-wise bias or not
+
+		Author: Yu-Kai "Steven" Wang
 		'''
 		super().__init__()
 		self.bias = bias
@@ -32,25 +39,18 @@ class MHSA(nn.Module):
 		x: input for self-attention
 		bias_rep: pair-wise bias
 		'''
-
-		# Step 1
-		qkv = self.to_qvk(x)  # [batch, tokens, c_m*3*heads ]
-
-		# Step 2
-		# decomposition to q,v,k and cast to tuple
-		# the resulted shape before casting to tuple will be:
-		# [3, batch, heads, tokens, dim_head]
+		# get q, v, k, g matrix for attention training
+		qkv = self.to_qvk(x)
 		q, k, v, g = tuple(rearrange(qkv, 'b t (d k h) -> k b h t d ', k=4, h=self.heads))
 		
-		# Step 3
-		# resulted shape will be: [batch, heads, tokens, tokens]
+		# dot product attention
 		scaled_dot_prod = torch.einsum('b h i d , b h j d -> b h i j', q, k) * self.scale_factor
 
 		if mask is not None:
 			assert mask.shape == scaled_dot_prod.shape[2:]
 			scaled_dot_prod = scaled_dot_prod.masked_fill(mask, -np.inf)
 
-		# pair wise bias
+		# pair-wise bias
 		scaled_bias = 0
 		if self.bias:
 			scaled_bias = self.fc_scale_bias(bias_rep)
@@ -58,25 +58,27 @@ class MHSA(nn.Module):
 			
 		attention = torch.softmax(scaled_dot_prod + scaled_bias, dim=-1)
 		
-		# Step 4. Calc result per batch and per head h
+		# dot product with matrix v
 		out = torch.einsum('b h i j , b h j d -> b h i d', attention, v)
 		
 		# gating
 		g = torch.sigmoid(g)
 		out *= g
 
-		# Step 5. Re-compose: merge heads with dim_head d
+		# concat heads
 		out = rearrange(out, "b h t d -> b t (h d)")
 
-		# Step 6. Apply final linear transformation layer
+		# transform back to initial dimension
 		return self.W_0(out)
 
 class MSA_Stack(nn.Module):
 	def __init__(self, batch_size, c_m, c_z, heads=8, dim_head=None):
 		'''
-		Do a row-wise MHSA with pair bias follow by a column-wise 
+		Do batches of row-wise MHSA with pair bias follow by a column-wise 
 		MHSA without bias. The result is then passed through a two
 		layer MLP as transition.
+
+		Author: Yu-Kai "Steven" Wang
 		'''
 		super().__init__()
 		# batches of row wise MHSA
@@ -92,19 +94,25 @@ class MSA_Stack(nn.Module):
 		self.ln3 = nn.LayerNorm(c_m)
 		
 	def forward(self, x, bias_rep):
+		# results
 		res = torch.empty(x.shape).to(x.get_device())
+
 		# layer norms
 		x = self.ln1(x)
 		bias_rep = self.ln2(bias_rep)
+
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.row_MHSA):
 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
 		x = x + res # add residuals
 		
+		# results
 		res2 = torch.empty(x.shape).to(x.get_device())
-		# column wise gated self-attention
+
 		# layer norms
 		x = self.ln3(x)
+
+		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.col_MHSA):
 			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
@@ -117,8 +125,13 @@ class MSA_Stack(nn.Module):
 		return r
 
 class Outer_Product_Mean(nn.Module):
-	
 	def __init__(self, c_m, c_z, c=32):
+		'''
+		Do a linear transform, outer-product, mean,
+		followed by another linear transform.
+
+		Author: Yu-Kai "Steven" Wang
+		'''
 		super().__init__()
 		# linear projections
 		self.fc1 = nn.Linear(c_m, c)
@@ -126,6 +139,7 @@ class Outer_Product_Mean(nn.Module):
 		self.flatten = nn.Flatten(start_dim=3)
 		self.c = c
 		self.c_z = c_z
+		# layer norms
 		self.ln = nn.LayerNorm(c_m)
 		
 	def forward(self, x):
@@ -160,6 +174,8 @@ class Pair_Stack(nn.Module):
 		Do a row-wise MHSA with pair bias on the start edges follow
 		by a column-wise MHSA with bias on the end edes. The result 
 		is then passed through a two layer MLP as transition.
+
+		Author: Yu-Kai "Steven" Wang
 		'''
 		super().__init__()
 		# batches of row wise MHSA
@@ -174,20 +190,26 @@ class Pair_Stack(nn.Module):
 		self.ln2 = nn.LayerNorm(c_z)
 		
 	def forward(self, x):
+		# results
 		res = torch.empty(x.shape).to(x.get_device())
+
 		# layer norms
 		x = self.ln1(x)
+
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i].clone(), x[i].clone())
 		x = x + res # add residuals
 		
+		# results
 		res2 = torch.empty(x.shape).to(x.get_device())
+
+		# layer norms
 		x = self.ln2(x)
+
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.end_MHSA):
-			# res[i] = mhsa(x_trans[i], x_trans[i])
 			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
 		x = x + res2 # add residuals
 		
@@ -199,6 +221,11 @@ class Pair_Stack(nn.Module):
 
 class Triangular_Multiplicative_Model(nn.Module):
 	def __init__(self, direction, c_z = 128, c = 16):
+		'''
+		Do batches of triangular multiplication
+
+		Author: Matthew Uryga
+		'''
 		super().__init__()
 		self.c = c
 		self.direction = direction
@@ -227,12 +254,13 @@ class Triangular_Multiplicative_Model(nn.Module):
 				bj = b[:, :, j]
 				z[:, i, j] = torch.sum(torch.mul(ai, bj), dim = -2)
 		z = torch.mul(g, self.lz(self.ln2(z)))
-# 		z = torch.mul(g, self.lz(z))
 		return z
 
 class PSSM_Projector(nn.Module):
 	'''
 	model to project pssm data to 16 layers
+
+	Author: Matthew Uryga
 	'''
 	def __init__(self, num_layers, c_m):
 		super().__init__()
@@ -252,6 +280,8 @@ class PSSM_Projector(nn.Module):
 class Input_Feature_Projector(nn.Module):
 	'''
 	projects the input features to c_2 features
+
+	Author: Matthew Uryga
 	'''
 	def __init__(self, c_2):
 		super().__init__()
@@ -268,6 +298,8 @@ class Input_Feature_Projector(nn.Module):
 class Residue_Index_Projector(nn.Module):
 	'''
 	projects onehot residue input to c_2 features
+
+	Author: Matthew Uryga
 	'''
 	def __init__(self, c_2):
 		super().__init__()
@@ -279,6 +311,15 @@ class Residue_Index_Projector(nn.Module):
 
 class Representation_Projector(nn.Module):
 	def __init__(self, r, s, c_m, c_z):
+		'''
+		Takes in batch of sequences and evos, and 
+		computes the outer-sum and the relative 
+		positional encoding. The PSSM is ran through 
+		s different linear projection layers to
+		construct the MSA representation.
+
+		Author Matthew Uryga
+		'''
 		super().__init__()
 		self.r = r
 		self.s = s
@@ -323,6 +364,8 @@ class Representation_Projector(nn.Module):
 class Evoformer_Trunk(nn.Module):
 	'''
 	evoformer trunk as outlined in the alphafold2 paper
+
+	Author: Matthew Uryga
 	'''
 	def __init__(self, batch_size, c_m, c_z, c):
 		super().__init__()
@@ -349,6 +392,13 @@ class Evoformer_Trunk(nn.Module):
 		return prw_rep, msa_rep
     
 class Evo_Model(nn.Module):
+	'''
+	Wrapper class for all the building blocks of the model.
+	Takes care of the input embeddings, alphafold model pipeline,
+	and finally dmat and angle predictions.
+
+	Author: Matthew Uryga
+	'''
 	def __init__(self, batch_size, r, s, c_m, c_z, c):
 		super().__init__()
 		self.rep_proj = Representation_Projector(r, s, c_m, c_z)

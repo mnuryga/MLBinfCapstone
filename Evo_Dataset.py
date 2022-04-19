@@ -1,3 +1,8 @@
+'''
+Parse data from sidechainnet into batches of crops.
+
+Author: Matthew Uryga
+'''
 import torch
 import torch.nn.functional as F
 from torch.utils.data import IterableDataset

@@ -1,3 +1,8 @@
+'''
+Training loop for the AlphaFold 2 model.
+
+Author: Matthew Uryga
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

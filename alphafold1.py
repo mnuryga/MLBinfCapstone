@@ -1,3 +1,10 @@
+'''
+Simple AlphaFold 1 implemenation from previous homework.
+This file is used in evaluatoin to compare the results 
+with the newer AlphFold 2 model.
+
+Author: Matthew Uryga
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
