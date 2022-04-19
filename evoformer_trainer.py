@@ -94,14 +94,13 @@ def main():
 				torch.save(checkpoint, f'checkpoints/best.pth')
                 
         # load model for validation
-		evoformer = nn.DataParallel(Evo_Model(batch_size_valid, r, s, c_m, c_z, c), device_ids=[0]).to(device)
-		evoformer.load_state_dict(torch.load('checkpoints/best.pth')['state_dict'])
-		evoformer.eval()
-        
+		evoformer_valid = nn.DataParallel(Evo_Model(batch_size_valid, r, s, c_m, c_z, c), device_ids=[0]).to(device)
+		evoformer_valid.load_state_dict(torch.load('checkpoints/best.pth')['state_dict'])
+		evoformer_valid.eval()
 
 		# VALIDATION
 		valid_loss = 0
-		evoformer.eval()
+# 		evoformer.eval()
 		with torch.no_grad():
 			for v_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(valid_loader, disable = True)):
 				# send batch to device
@@ -109,7 +108,7 @@ def main():
 
 				# run forward pass and cross entropy loss - reduction is none, so
 				# loss output is a batch*crop_size*crop_size tensor
-				pred_dmat, pred_angs = evoformer(seqs, evos)
+				pred_dmat, pred_angs = evoformer_valid(seqs, evos)
 				dmat_loss = loss_func(pred_dmat, dmat.long())
 				angs_loss = loss_func(pred_angs, angs.long())
 				# multiply loss output element-wise by mask and take the mean
@@ -123,7 +122,7 @@ def main():
 		# print out epoch stats
 		print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:06,d} crops:')
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size:.6f}')
+		print(f'\tValid loss per batch = {4*valid_loss/v_batch_idx/batch_size:.6f}')
 
 		# if valid_loss exceedes the 5-epoch rolling sum, break from training
 		if valid_loss > np.mean(prev_loss[-5:]):
