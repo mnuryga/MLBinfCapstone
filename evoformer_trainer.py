@@ -13,9 +13,10 @@ from Evo_Dataset import Evo_Dataset
 from Models import Evo_Model
 
 # CONSTANTS
-num_gpu = 1
-batch_size = 16 * num_gpu
+num_gpu = 4
+batch_size = 64 * num_gpu
 batch_size_gpu = batch_size // num_gpu
+batch_size_valid = 64
 r = 64
 c_m = 128
 c_z = 64
@@ -40,9 +41,9 @@ def main():
 	train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last = True)
 
 	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, s, c_m, c_z, progress_bar, USE_DEBUG_DATA)
-	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size, drop_last = True)
+	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size_valid, drop_last = True)
 
-	evoformer = nn.DataParallel(Evo_Model(batch_size_gpu, r, s, c_m, c_z, c, device = device), device_ids = [0]).to(device)
+	evoformer = nn.DataParallel(Evo_Model(batch_size_gpu, r, s, c_m, c_z, c)).to(device)
 	evoformer.train()
 
 	# load state_dict from file if specified
@@ -83,7 +84,7 @@ def main():
 			optimizer.step()
 
 			# save to file if specified
-			if t_batch_idx % 25 == 0 and save_to_file:
+			if t_batch_idx % 1 == 0 and save_to_file:
 				checkpoint = {
 					'epoch': epoch,
 					'loss': sum_loss,
@@ -91,6 +92,12 @@ def main():
 					'optimizer': optimizer.state_dict(),
 				}
 				torch.save(checkpoint, f'checkpoints/best.pth')
+                
+        # load model for validation
+		evoformer = nn.DataParallel(Evo_Model(batch_size_valid, r, s, c_m, c_z, c), device_ids=[0]).to(device)
+		evoformer.load_state_dict(torch.load('checkpoints/best.pth')['state_dict'])
+		evoformer.eval()
+        
 
 		# VALIDATION
 		valid_loss = 0
@@ -124,4 +131,4 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+    main()
