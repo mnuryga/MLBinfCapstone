@@ -139,7 +139,7 @@ def main():
 				pred_dmat[i] = pd
 				pred_angs[i] = pa
 
-			dmat_loss = loss_func(pred_dmat, dmat.long())
+			dmat_loss = loss_func(pred_dmat.mul(dmat_mask), dmat.long())
 			angs_loss = loss_func(pred_angs, angs.long())
 
 			# add loss to running total
@@ -166,7 +166,7 @@ def main():
 
 			# temp code to visualize the predicted contact map
 			pred_contacts = torch.round(torch.sum(pred_seq_probs[:, :, :20], dim = -1))
-			plt.imshow(pred_contacts.to('cpu').numpy(), cmap = 'Greys', interpolation = 'nearest')
+			plt.imshow(dmat_mask[0].to('cpu').numpy(), cmap = 'Greys', interpolation = 'nearest')
 			plt.show()
 			sys.exit(0)
 

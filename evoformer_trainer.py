@@ -69,7 +69,7 @@ def main():
 			# run forward pass and cross entropy loss - reduction is none, so
 			# loss output is a batch*crop_size*crop_size tensor
 			pred_dmat, pred_angs = evoformer(seqs, evos)
-			dmat_loss = loss_func(pred_dmat, dmat.long())
+			dmat_loss = loss_func(pred_dmat.mul(dmat_mask.long()), dmat.long())
 			angs_loss = loss_func(pred_angs, angs.long())
             
 			# early stop if nan is detected in loss
@@ -119,7 +119,7 @@ def main():
 				# run forward pass and cross entropy loss - reduction is none, so
 				# loss output is a batch*crop_size*crop_size tensor
 				pred_dmat, pred_angs = evoformer_valid(seqs, evos)
-				dmat_loss = loss_func(pred_dmat, dmat.long())
+				dmat_loss = loss_func(pred_dmat.mul(dmat_mask.long()), dmat.long())
 				angs_loss = loss_func(pred_angs, angs.long())
 				# multiply loss output element-wise by mask and take the mean
 				# loss = loss.mul(dmat_mask)

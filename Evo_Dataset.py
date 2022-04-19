@@ -104,7 +104,7 @@ class Evo_Dataset(IterableDataset):
 
 			# dmat is symmetrical, so we want to mask out all positions below the diagonal
 			for i in range(L):
-				dmat_masks[:i] = 0
+				dmat_masks[:, i, :i] = 0
 
 			for seq, evo, dmat, dmat_mask, ang in zip(seqs, evos, dmats, dmat_masks, angs):
 				# get crops of length r
@@ -121,7 +121,7 @@ class Evo_Dataset(IterableDataset):
 					n = torch.zeros((num_seq, self.r, self.r))
 					a = torch.zeros((num_seq, self.r))
 					count = 0
-					for i in range(i, L, self.stride):
+					for i in range(0, L, self.stride):
 						s[count] = seq[i:i+self.r]
 						e[count] = evo[i:i+self.r]
 						d[count] = dmat[i:i+self.r, i:i+self.r]
