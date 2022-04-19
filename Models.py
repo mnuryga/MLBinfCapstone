@@ -126,7 +126,7 @@ class Outer_Product_Mean(nn.Module):
 		self.flatten = nn.Flatten(start_dim=3)
 		self.c = c
 		self.c_z = c_z
-		self.ln = nn.LayerNorm(self.c_z)
+		self.ln = nn.LayerNorm(c_m)
 		
 	def forward(self, x):
 		'''
@@ -176,7 +176,7 @@ class Pair_Stack(nn.Module):
 	def forward(self, x):
 		res = torch.empty(x.shape).to(x.get_device())
 		# layer norms
-		x = self.ln(x)
+		x = self.ln1(x)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i].clone(), x[i].clone())
