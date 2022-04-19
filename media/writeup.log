@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  19 APR 2022 14:50
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  19 APR 2022 15:21
 entering extended mode
 **C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/writeup.tex
 (C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/writeup.tex
@@ -627,91 +627,96 @@ Underfull \hbox (badness 10000) in paragraph at lines 124--126
  []
 
 LaTeX Font Info:    Trying to load font information for OT1+ntxtlf on input lin
-e 128.
+e 131.
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\ot1ntxtlf.fd
 File: ot1ntxtlf.fd 2021/05/24 v1.0 font definition file for OT1/ntx/tlf
 )
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 10.95pt on input line 128.
+(Font)              scaled to size 10.95pt on input line 131.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 8.0pt on input line 128.
+(Font)              scaled to size 8.0pt on input line 131.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 6.1pt on input line 128.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 128
+(Font)              scaled to size 6.1pt on input line 131.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 131
 .
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 128
+LaTeX Font Info:    Trying to load font information for U+msb on input line 131
 .
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Trying to load font information for U+ntxmia on input line 
-128.
+131.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxmia.fd
 File: untxmia.fd 2018/04/14 Fontinst v1.933 font definitions for U/ntxmia.
 )
 LaTeX Font Info:    Trying to load font information for U+ntxsym on input line 
-128.
+131.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxsym.fd
 File: untxsym.fd 2015/03/20 Fontinst v1.933 font definitions for U/ntxsym.
 )
 LaTeX Font Info:    Trying to load font information for U+ntxsyc on input line 
-128.
+131.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxsyc.fd
 File: untxsyc.fd 2012/04/12 Fontinst v1.933 font definitions for U/ntxsyc.
 )
-LaTeX Font Info:    Trying to load font information for U+wasy on input line 12
-8.
+LaTeX Font Info:    Trying to load font information for U+wasy on input line 13
+1.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/wasysym\uwasy.fd
 File: uwasy.fd 2020/01/19 v2.4 Wasy-2 symbol font definitions
 )
-Underfull \hbox (badness 10000) in paragraph at lines 128--140
+Underfull \hbox (badness 10000) in paragraph at lines 131--143
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 160--172
 
  []
 
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
-(Font)              scaled to size 10.95pt on input line 156.
+(Font)              scaled to size 10.95pt on input line 190.
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
-(Font)              scaled to size 17.28pt on input line 156.
+(Font)              scaled to size 17.28pt on input line 190.
 [1{C:/Users/mnury/AppData/Local/MiKTeX/pdftex/config/pdftex.map}
 
 ] [2]
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 10.0pt on input line 161.
+(Font)              scaled to size 10.0pt on input line 205.
 LaTeX Font Info:    Trying to load font information for T1+ntxtt on input line 
-161.
+205.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\t1ntxtt.fd
 File: t1ntxtt.fd 2012/04/20 v3.1
 )
 LaTeX Font Info:    Font shape `T1/ntxtt/m/n' will be
-(Font)              scaled to size 10.0pt on input line 161.
-LaTeX Font Info:    Trying to load font information for T1+txtt on input line 1
-74.
+(Font)              scaled to size 10.0pt on input line 205.
+LaTeX Font Info:    Trying to load font information for T1+txtt on input line 2
+18.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/txfonts\t1txtt.fd
 File: t1txtt.fd 2000/12/15 v3.1
 )
 LaTeX Font Info:    Font shape `T1/ntxtt/b/n' in size <10> not available
-(Font)              Font shape `T1/txtt/bx/n' tried instead on input line 174.
+(Font)              Font shape `T1/txtt/bx/n' tried instead on input line 218.
 
 [3] (writeup.aux) ) 
 Here is how much of TeX's memory you used:
- 10812 strings out of 478864
- 148245 string characters out of 2848660
- 656159 words of memory out of 3000000
- 28545 multiletter control sequences out of 15000+600000
+ 10814 strings out of 478864
+ 148309 string characters out of 2848660
+ 690172 words of memory out of 3000000
+ 28547 multiletter control sequences out of 15000+600000
  443090 words of font info for 77 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 64i,11n,80p,683b,1489s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 64i,11n,80p,684b,1489s stack positions out of 5000i,500n,10000p,200000b,80000s
 {C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/enc/dvip
 s/newtx/ntx-ot1-tlf.enc}{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/enc
 /dvips/newtx/ntx-ec-tlf.enc}<C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts
@@ -721,7 +726,7 @@ TeX/fonts/type1/public/txfonts/t1xbtt.pfb><C:/Users/mnury/AppData/Local/Program
 s/MiKTeX/fonts/type1/public/txfonts/t1xtt.pfb><C:/Users/mnury/AppData/Local/Pro
 grams/MiKTeX/fonts/type1/public/newtx/ztmb.pfb><C:/Users/mnury/AppData/Local/Pr
 ograms/MiKTeX/fonts/type1/public/newtx/ztmr.pfb>
-Output written on writeup.pdf (3 pages, 129629 bytes).
+Output written on writeup.pdf (3 pages, 135960 bytes).
 PDF statistics:
  47 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
