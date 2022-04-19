@@ -24,6 +24,7 @@ class Evo_Dataset(IterableDataset):
 				aggregate_model_input=False, batch_size=batch_size, num_workers = 0)
 
 	@staticmethod
+	# Taken from alphafold1 starter code
 	def get_seq_features(batch):
 		'''
 		Take a batch of sequence info and return the sequence (one-hot),

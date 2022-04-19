@@ -1,0 +1,184 @@
+\documentclass[11pt]{article}
+\usepackage{amsfonts,amssymb,amsmath,amsthm,amscd}
+\usepackage{courier}
+\usepackage{mathtools}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{newtxtext,newtxmath}
+\usepackage{listings}
+\usepackage{wasysym}
+\usepackage{makecell}
+\usepackage[linesnumbered,ruled]{algorithm2e}
+\usepackage[margin=2.5cm]{geometry}
+\parindent 0px
+
+%Header
+\fancyhf{}
+\setlength{\headheight}{50pt}
+\pagestyle{fancy}
+\lhead{04/19/2022}
+\chead{\bf\LARGE Capstone 1 Writeup}
+\rhead{Matthew Uryga\\CSCI-4969\\Spring 2022}
+\cfoot{\thepage}
+\headsep 5mm
+
+%Document
+\allowdisplaybreaks
+\lstset{frame=tb, language=python, basicstyle={\small\ttfamily}}
+
+%Functions
+\newcommand{\prob}[1]{{\Large\textbf{#1}}}
+\newcommand{\npr}{\\[8mm]}
+\newcommand{\itm}[1]{\item[(#1)]}
+\newcommand{\np}{\newpage}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\HH}{\mathcal{H}}
+\newcommand{\PPT}[1]{\PP(\text{#1})}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\ET}[1]{\E[\text{#1}]}
+\newcommand{\Lang}{\mathcal{L}}
+\newcommand{\pminf}{_{-\infty}^{+\infty}}
+\newcommand{\schrodeq}{-\frac{\hslash^2}{2m}\PPartial{\Psi(x,t)}{x}+V(x)\Psi(x,t)=i\hslash\Partial{\Psi(x,t)}{t}}
+\newcommand{\st}{^{*}}
+\newcommand{\Claim}{{\bf Claim: }}
+\newcommand\sbullet[1][1]{\mathbin{\ThisStyle{\vcenter{\hbox{%
+	\scalebox{#1}{$\SavedStyle\bullet$}}}}}%
+}
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+						\node[shape=circle,draw,inner sep=1pt] (char) {#1};}}
+\newcommand{\hs}{\hslash}
+\newcommand{\eiet}[1]{e^{\frac{iE_{#1}t}{\hslash}}}
+\newcommand{\neiet}[1]{e^{-\frac{iE_{#1}t}{\hslash}}}
+\newcommand{\eikx}[1]{e^{ik_{#1}x}}
+\newcommand{\neikx}[1]{e^{-ik_{#1}x}}
+\newcommand{\pr}{^\prime}
+\newcommand{\ppr}{^{\prime\prime}}
+\newcommand{\pppr}{^{\prime\prime\prime}}
+\newcommand{\ppppr}{^{\prime\prime\prime\prime}}
+\newcommand{\op}[1]{\hat #1}
+\newcommand{\dg}{^\dagger}
+\newcommand{\lal}{(\alph*)}
+\newcommand{\lrom}{(\roman*)}
+\newcommand{\lara}{(\arabic*)}
+\newcommand{\comm}[2]{\left[\hat{#1},\hat{#2}\right]}
+\newcommand{\xyz}{(x,y,z)}
+\newcommand{\bbar}[1]{\mkern 1.5mu\overline{\mkern-1.5mu#1\mkern-1.5mu}\mkern 1.5mu}
+\newcommand{\dx}{\,dx}
+\newcommand{\oneminus}[1]{\left(1-#1\right)}
+\newcommand{\hi}{\frac{\hs}{i}}
+\newcommand{\ih}{\frac{i}{\hs}}
+\newcommand{\e}[1]{\cdot10^{#1}}
+\newcommand{\hv}{\inv{2}}
+\newcommand{\inv}[1]{\frac{1}{#1}}
+\newcommand{\invsq}[1]{\frac{1}{\sqrt{#1}}}
+\newcommand{\sqfr}[2]{\sqrt\frac{#1}{#2}}
+\newcommand{\Partial}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\PPartial}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\FPartial}[2]{\frac{\partial}{\partial #2}#1}
+\newcommand{\FPPartial}[2]{\frac{\partial^2}{\partial #2^2}#1}
+\newcommand{\FpPartial}[2]{\frac{\partial}{\partial #2}\left(#1\right)}
+\newcommand{\FpPPartial}[2]{\frac{\partial^2}{\partial #2^2}\left(#1\right)}
+\newcommand{\deriv}[2]{\frac{d #1}{d #2}}
+\newcommand{\dderiv}[2]{\frac{d^2 #1}{d #2^2}}
+\newcommand{\expval}[1]{\left\langle #1 \right\rangle}
+\newcommand{\vvatrix}[2]{\paren{\begin{matrix}#1\\#2\end{matrix}}}
+\newcommand{\vvvatrix}[3]{\paren{\begin{matrix}#1\\#2\\#3\end{matrix}}}
+\newcommand{\vvvvatrix}[4]{\paren{\begin{matrix}#1\\#2\\#3\\#4\end{matrix}}}
+\newcommand{\hhatrix}[2]{\paren{\begin{matrix}#1&#2\end{matrix}}}
+\newcommand{\hhhatrix}[3]{\paren{\begin{matrix}#1&#2&#3\end{matrix}}}
+\newcommand{\hhhhatrix}[4]{\paren{\begin{matrix}#1&#2&#3&#4\end{matrix}}}
+\newcommand{\mmatrix}[4]{\paren{\begin{matrix}#1&#2\\#3&#4\end{matrix}}}
+\newcommand{\mmmatrix}[9]{\paren{\begin{matrix}#1&#2&#3\\#4&#5&#6\\#7&#8&#9\end{matrix}}}
+\newcommand{\ccases}[4]{\begin{cases}#1&#2\\#3&#4\end{cases}}
+\newcommand{\norm}[1]{\left|\left|#1\right|\right|}
+\newcommand{\paren}[1]{\left(#1\right)}
+\newcommand{\eps}{\epsilon}
+\newcommand{\magn}[1]{\left|\left|#1\right|\right|}
+\newcommand{\bs}[1]{\boldsymbol{#1}}
+\newcommand{\mh}{m_{\HH}}
+\newcommand{\dvc}{{d_{VC}}}
+%Constants 
+\newcommand{\h}{6.626\e{-34}}
+\newcommand{\elec}{1.6\e{-19}}
+\newcommand{\elecmass}{9.109\e{-31}}  
+\newcommand{\cc}{3\e{8}}
+%Misc
+\DeclarePairedDelimiter\ceil{\lceil}{\rceil}
+\DeclarePairedDelimiter\floor{\lfloor}{\rfloor}
+
+\begin{document}
+\section{Distribution of Work}
+\subsection{Yu-Kai (Steven) Wang}
+Steven implemented the multihead self attention, outer product mean, and triangular self attention.  He also worked on parallelization and tinkering with the model to allow it to work on the DCS cluster with multiple GPUs.
+
+\subsection{Matthew Uryga}
+Matthew implemented the triangular multiplication, as well as constructing the overall structure of the evoformer trunk from the modules that were constructed above.  He also implemented the dataset for training/testing, as well as the training loop and evaluation.
+
+\subsection{Repository Link}
+The code for our implementation of the evoformer trunk can be found here:\\https://github.com/mnuryga/MLBinfCapstone.
+\\[4mm]
+
+\section{Results}
+Accuracies for top $\frac{L}{k}$ predictions:\\[4mm]
+\begin{tabular}{c|c|c|c}
+$k$ & Short & Medium & Long\\
+\hline
+1   & 0.230443 & 0.221818 & 0.230140\\
+2   & 0.347676 & 0.307315 & 0.296237\\
+5   & 0.511692 & 0.431034 & 0.376984\\
+10  & 0.615373 & 0.506860 & 0.438546\\
+20  & 0.693295 & 0.586715 & 0.480660\\
+50  & 0.762319 & 0.630435 & 0.526087\\
+100 & 0.818116 & 0.660507 & 0.556522
+\end{tabular}\\[6mm]
+
+Accuracies for top $\frac{L}{k}$ predictions with thresholding (>0.5):\\[4mm]
+\begin{tabular}{c|c|c|c}
+$k$ & Short & Medium & Long\\
+\hline
+1   & 0.736420 & 0.759364 & 0.784539\\
+2   & 0.736420 & 0.759364 & 0.784539\\
+5   & 0.736397 & 0.760673 & 0.785875\\
+10  & 0.742424 & 0.762611 & 0.794528\\
+20  & 0.763906 & 0.774161 & 0.829209\\
+50  & 0.800072 & 0.797717 & 0.847826\\
+100 & 0.835290 & 0.825797 & 0.849275
+\end{tabular}
+
+\subsection{Conclusion}
+As shown above, the contact prediction accuracy is relatively good when thresholding, but the accuracy falls off significantly when the predictions are not thresholded and when greater than $\frac{L}{10}$ of the predictions are considered.  From this, it can be concluded that the model is not predicting enough contacts with high enough confidence to effectively estimate the protein structure.  However, it is worth noting that while training, the prediction accuracy has only increased.  Given more time, and perhaps more dilation blocks, the model may be able to achieve much better accuracy.
+\np
+
+\subsection{Script Output}
+Note that not all of the training output was recorded, as it was done over several days.
+
+\begin{lstlisting}
+Epoch 22, 70,880 crops:
+        Train loss per batch = 0.049809
+        Valid loss per batch = 0.052133
+Epoch 23, 73,640 crops:
+        Train loss per batch = 0.047115
+        Valid loss per batch = 0.050202
+Epoch 24, 69,980 crops:
+        Train loss per batch = 0.046847
+        Valid loss per batch = 0.050519
+
+Test loss per crop: 0.022741
+
+---Accuracies for L/k sequences--
+        short       med      long
+1    0.230443  0.221818  0.230140
+2    0.347676  0.307315  0.296237
+5    0.511692  0.431034  0.376984
+10   0.615373  0.506860  0.438546
+20   0.693295  0.586715  0.480660
+50   0.762319  0.630435  0.526087
+100  0.818116  0.660507  0.556522
+\end{lstlisting}
+\end{document}
