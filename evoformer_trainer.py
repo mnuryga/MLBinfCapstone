@@ -9,8 +9,8 @@ import sys
 from tqdm import tqdm
 from einops import rearrange
 
-from Evo_Dataset import Evo_Dataset
-from Models import Evo_Model
+from evo_dataset import Evo_Dataset
+from models import Evo_Model
 import os
 
 # CONSTANTS

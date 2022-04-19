@@ -10,8 +10,8 @@ from einops import rearrange
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from Evo_Dataset import Evo_Dataset
-from Models import Evo_Model
+from evo_dataset import Evo_Dataset
+from models import Evo_Model
 from alphafold1 import Residual_Model
 
 # CONSTANTS
