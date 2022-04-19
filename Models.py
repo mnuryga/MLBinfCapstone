@@ -86,9 +86,16 @@ class MSA_Stack(nn.Module):
 		# transition MLP
 		self.fc1 = nn.Linear(c_m, 4 * c_m)
 		self.fc2 = nn.Linear(4 * c_m, c_m)
+		# layer norms
+		self.ln1 = nn.LayerNorm(c_m)
+		self.ln2 = nn.LayerNorm(c_z)
+		self.ln3 = nn.LayerNorm(c_m)
 		
 	def forward(self, x, bias_rep):
 		res = torch.empty(x.shape).to(x.get_device())
+		# layer norms
+		x = self.ln1(x)
+		bias_rep = self.ln2(bias_rep)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.row_MHSA):
 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
@@ -96,6 +103,8 @@ class MSA_Stack(nn.Module):
 		
 		res2 = torch.empty(x.shape).to(x.get_device())
 		# column wise gated self-attention
+		# layer norms
+		x = self.ln3(x)
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.col_MHSA):
 			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
@@ -117,6 +126,7 @@ class Outer_Product_Mean(nn.Module):
 		self.flatten = nn.Flatten(start_dim=3)
 		self.c = c
 		self.c_z = c_z
+		self.ln = nn.LayerNorm(c_m)
 		
 	def forward(self, x):
 		'''
@@ -125,6 +135,9 @@ class Outer_Product_Mean(nn.Module):
 		'''
 		# results
 		res = torch.empty(x.shape[0], x.shape[-2], x.shape[-2], self.c, self.c).to(x.get_device())
+		     
+		# layer norm
+		x = self.ln(x)
 		
 		# project in_c to out_c
 		x = self.fc1(x)
@@ -156,15 +169,21 @@ class Pair_Stack(nn.Module):
 		# transition MLP
 		self.fc1 = nn.Linear(c_z, 4 * c_z)
 		self.fc2 = nn.Linear(4 * c_z, c_z)
+		# layer norms
+		self.ln1 = nn.LayerNorm(c_z)
+		self.ln2 = nn.LayerNorm(c_z)
 		
 	def forward(self, x):
 		res = torch.empty(x.shape).to(x.get_device())
+		# layer norms
+		x = self.ln1(x)
 		# row wise gated self-attention with pair bias
 		for i, mhsa in enumerate(self.start_MHSA):
 			res[i] = mhsa(x[i].clone(), x[i].clone())
 		x = x + res # add residuals
 		
 		res2 = torch.empty(x.shape).to(x.get_device())
+		x = self.ln2(x)
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
 		for i, mhsa in enumerate(self.end_MHSA):
@@ -183,17 +202,17 @@ class Triangular_Multiplicative_Model(nn.Module):
 		super().__init__()
 		self.c = c
 		self.direction = direction
-		# self.ln1 = nn.LayerNorm(c_z)
+		self.ln1 = nn.LayerNorm(c_z)
 		self.la1 = nn.Linear(c_z, c)
 		self.la2 = nn.Linear(c_z, c)
 		self.lb1 = nn.Linear(c_z, c)
 		self.lb2 = nn.Linear(c_z, c)
-		# self.ln2 = nn.LayerNorm(c)
+		self.ln2 = nn.LayerNorm(c)
 		self.lg = nn.Linear(c_z, c_z)
 		self.lz = nn.Linear(c, c_z)
 	
 	def forward(self, x):
-		# z = self.ln1(x)
+		z = self.ln1(x)
 		z = x
 		a = torch.sigmoid(torch.mul(self.la1(z), self.la2(z)))
 		b = torch.sigmoid(torch.mul(self.lb1(z), self.lb2(z)))
@@ -207,8 +226,8 @@ class Triangular_Multiplicative_Model(nn.Module):
 				ai = a[:, i, :]
 				bj = b[:, :, j]
 				z[:, i, j] = torch.sum(torch.mul(ai, bj), dim = -2)
-		# z = torch.mul(g, self.lz(self.ln2(z)))
-		z = torch.mul(g, self.lz(z))
+		z = torch.mul(g, self.lz(self.ln2(z)))
+# 		z = torch.mul(g, self.lz(z))
 		return z
 
 class PSSM_Projector(nn.Module):
