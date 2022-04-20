@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  19 APR 2022 15:21
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  19 APR 2022 23:42
 entering extended mode
 **C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/writeup.tex
 (C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/writeup.tex
@@ -690,45 +690,45 @@ LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
 
 ] [2]
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 10.0pt on input line 205.
+(Font)              scaled to size 10.0pt on input line 208.
 LaTeX Font Info:    Trying to load font information for T1+ntxtt on input line 
-205.
+208.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\t1ntxtt.fd
 File: t1ntxtt.fd 2012/04/20 v3.1
 )
 LaTeX Font Info:    Font shape `T1/ntxtt/m/n' will be
-(Font)              scaled to size 10.0pt on input line 205.
+(Font)              scaled to size 10.0pt on input line 208.
 LaTeX Font Info:    Trying to load font information for T1+txtt on input line 2
-18.
+21.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/txfonts\t1txtt.fd
 File: t1txtt.fd 2000/12/15 v3.1
 )
 LaTeX Font Info:    Font shape `T1/ntxtt/b/n' in size <10> not available
-(Font)              Font shape `T1/txtt/bx/n' tried instead on input line 218.
+(Font)              Font shape `T1/txtt/bx/n' tried instead on input line 221.
 
-[3] (writeup.aux) ) 
+[3] [4] (writeup.aux) ) 
 Here is how much of TeX's memory you used:
  10814 strings out of 478864
  148309 string characters out of 2848660
- 690172 words of memory out of 3000000
+ 683172 words of memory out of 3000000
  28547 multiletter control sequences out of 15000+600000
  443090 words of font info for 77 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 64i,11n,80p,684b,1489s stack positions out of 5000i,500n,10000p,200000b,80000s
-{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/enc/dvip
-s/newtx/ntx-ot1-tlf.enc}{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/enc
-/dvips/newtx/ntx-ec-tlf.enc}<C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts
-/type1/public/newtx/NewTXMI.pfb><C:/Users/mnury/AppData/Local/Programs/MiKTeX/f
-onts/type1/public/newtx/NewTXMI7.pfb><C:/Users/mnury/AppData/Local/Programs/MiK
-TeX/fonts/type1/public/txfonts/t1xbtt.pfb><C:/Users/mnury/AppData/Local/Program
-s/MiKTeX/fonts/type1/public/txfonts/t1xtt.pfb><C:/Users/mnury/AppData/Local/Pro
-grams/MiKTeX/fonts/type1/public/newtx/ztmb.pfb><C:/Users/mnury/AppData/Local/Pr
-ograms/MiKTeX/fonts/type1/public/newtx/ztmr.pfb>
-Output written on writeup.pdf (3 pages, 135960 bytes).
+ 64i,12n,80p,684b,1791s stack positions out of 5000i,500n,10000p,200000b,80000s
+{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/enc/
+dvips/newtx/ntx-ot1-tlf.enc}{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts
+/enc/dvips/newtx/ntx-ec-tlf.enc}<C:/Users/mnury/AppData/Local/Programs/MiKTeX/f
+onts/type1/public/newtx/NewTXMI.pfb><C:/Users/mnury/AppData/Local/Programs/MiKT
+eX/fonts/type1/public/newtx/NewTXMI7.pfb><C:/Users/mnury/AppData/Local/Programs
+/MiKTeX/fonts/type1/public/txfonts/t1xbtt.pfb><C:/Users/mnury/AppData/Local/Pro
+grams/MiKTeX/fonts/type1/public/txfonts/t1xtt.pfb><C:/Users/mnury/AppData/Local
+/Programs/MiKTeX/fonts/type1/public/newtx/ztmb.pfb><C:/Users/mnury/AppData/Loca
+l/Programs/MiKTeX/fonts/type1/public/newtx/ztmr.pfb>
+Output written on writeup.pdf (4 pages, 137657 bytes).
 PDF statistics:
- 47 PDF objects out of 1000 (max. 8388607)
+ 50 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 
