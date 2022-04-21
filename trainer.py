@@ -14,7 +14,7 @@ import sys
 from tqdm import tqdm
 from einops import rearrange
 
-from evo_dataset import Evo_Dataset
+from datasets import Evo_Dataset
 from models import Evo_Model
 import os
 

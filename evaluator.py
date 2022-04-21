@@ -15,7 +15,7 @@ from einops import rearrange
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from evo_dataset import Evo_Dataset
+from datasets import Evo_Dataset
 from models import Evo_Model
 from alphafold1 import Residual_Model
 
