@@ -444,3 +444,30 @@ class Evo_Model(nn.Module):
 		pred_dmat = self.proj_dmat(c_first)
 		pred_angs = self.proj_angs(self.angs_pool(c_first))
 		return pred_dmat, pred_angs.squeeze(-1)
+
+class IPA_Model(nn.Module):
+	'''
+	IPA module as outlined in alphafold2 paper
+
+	Author: Matthew Uryga, Yu-Kai "Steven" Wang
+	'''
+	def __init__(self):
+		super().__init__()
+		pass
+	
+	def forward(self, x):
+		pass
+
+class Alphafold2_Model(nn.Module):
+	'''
+	Module to wrap the entire alphafold2 model
+	Includes input embeddings/projections, evoformer trunk, and IPA model
+
+	Author: Matthew Uryga, Yu-Kai "Steven" Wang
+	'''
+	def __init__(self):
+		super().__init__()
+		pass
+	
+	def forward(self, x):
+		pass
