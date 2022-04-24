@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import numpy as np
 import sys
 from einops import rearrange, repeat
-from pytorch3d.transforms import quaternion_to_matrix
+from scipy.spatial.transform import Rotation
 
 class MHSA(nn.Module):
 	def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):
@@ -449,17 +449,128 @@ class Evo_Model(nn.Module):
 		return pred_dmat, pred_angs.squeeze(-1)
 
 class IPA_Module(nn.Module):
-	'''
-	IPA module as outlined in alphafold2 paper
-
-	Author: Matthew Uryga, Yu-Kai "Steven" Wang
-	'''
-	def __init__(self):
-		super().__init__()
-		pass
 	
-	def forward(self, x):
-		pass
+	def __init__(self, c_m, c_z, heads=12, dim_head=None, n_qp=4, n_pv=8):
+		'''
+		dim_head: channel C
+		'''
+		super().__init__()
+		
+		# constants
+		self.w_c = (2 / (9 * n_qp)) ** -0.5
+		self.w_l = (1 / 3) ** -0.5
+		self.n_qp = n_qp
+		self.n_pv = n_pv
+		
+		# single rep attention layers
+		self.heads = heads
+		self.dim_head = (int(c_m / heads)) if dim_head is None else dim_head
+		_dim = self.dim_head * heads
+		self.to_qvk = nn.Linear(c_m, _dim * 3, bias=False)
+		self.W_0 = nn.Linear(_dim, c_m, bias=False)
+		self.to_qk = nn.Linear(c_m, (n_qp * heads *3) * 2, bias=False)
+		self.W_0 = nn.Linear(_dim, c_m, bias=False)
+		self.W_1 = nn.Linear(heads * c_z, c_m, bias=False)
+		self.W_2 = nn.Linear(heads * n_pv * 3, c_m)
+		self.gamma = nn.Parameter(torch.rand(1))
+		self.to_v = nn.Linear(c_m, (n_pv * heads * 3), bias=False)
+		
+		# pair_rep layers
+		self.fc1 = nn.Linear(c_z, heads)
+
+	def forward(self, pair_rep, sing_rep, bbr, bbt):
+		print(f'{bbr.shape = }')
+		print(f'{bbt.shape = }')
+		sys.exit(0)
+		'''
+		bbr: rotational matrix (B x R x 3 x 3)
+		bbt: translatoin matrix (B x R x 3)
+		'''
+		
+		# pair_rep to pair_bias
+		pair_bias = self.fc1(pair_rep)
+		pair_bias = rearrange(pair_bias, 'b i j h -> b h i j')
+		print(f'pair bias shape = {pair_bias.shape}')
+		
+		### SINGLE REP SQR ATTENTION
+		
+		# get q and v for attention training (B x P x R x H x 3)
+		qk = self.to_qk(sing_rep)
+		print(f'qk shape = {qk.shape}')
+		gq, gk = tuple(rearrange(qk, 'b r (d k p a) -> k b p r d a', k=2, a=3, p=self.n_qp))
+		print(f'qk shape = {gq.shape}')
+		gv = rearrange(self.to_v(sing_rep), 'b r (d p a) -> b p r d a', a=3, p=self.n_pv)
+		print(f'gv shape = {gv.shape}')
+		
+		### SINGLE REP DOT ATTENTION
+		
+		# get q, v, k matrices for attention training (B x H x R x C)
+		qkv = self.to_qvk(sing_rep)
+		print(f'qkv shape = {qkv.shape}')
+		rq, rk, rv = tuple(rearrange(qkv, 'b r (d k h) -> k b h r d', k=3, h=self.heads))
+		print(f'qkv shape = {rq.shape}')
+	
+		# dot product attention (B x H x R x R)
+		dot_prod_aff = torch.einsum('b h i d , b h j d -> b h i j', rq, rk) * (self.dim_head ** -0.5)
+		print(f'dot_prod_aff shape = {dot_prod_aff.shape}')
+		
+		# square dist attention
+		Tq = torch.einsum('b p r h a , b r a k -> b p h r k', gq, bbr) + bbt
+		Tk = -1 * torch.einsum('b p r h a , b r a k -> b p h r k', gk, bbr) + bbt
+		print(f'Tq shape = {Tq.shape}')
+		# dot product
+		sqr_dist_aff = torch.einsum('b p h i k , b p h j k -> b p h i j k', Tq, Tk)
+		# norm square
+		sqr_dist_aff = torch.sum(torch.square(torch.norm(sqr_dist_aff, dim=-1)), dim=1) # b h r r
+		print(f'norm_sqr shape = {sqr_dist_aff.shape}')
+		# multiply head weight
+		head_w = (F.softplus(self.gamma.repeat(self.heads)) * self.w_c) / 2
+		print(f'head_w shape = {head_w.shape}')
+		print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')        
+		sqr_dist_aff = rearrange(rearrange(sqr_dist_aff, 'b h i j -> b i j h') * head_w, 'b i j h -> b h i j')
+		print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')
+		
+		# sum attentions with bias then softmax (B x H x R x R)
+		attentions = pair_bias + dot_prod_aff + sqr_dist_aff
+		attentions = torch.softmax(self.w_l * attentions, dim=-1)
+		print(f'attentions after softmax shape = {attentions.shape}')
+		
+		
+		# dot with pair values (top) 
+		# B Rq H R x B Rq R C => B R H C
+		top = torch.einsum('b h i j , b h j d -> b h i d', rearrange(attentions, 'b h i j -> b i h j'), pair_rep) # B H Rq R x B C R R -> B C R R
+		# concat heads
+		top = rearrange(top, 'b r h c -> b r (h c)')
+		print(f'top shape = {top.shape}')
+		# transform back to initial dimension
+		top = self.W_1(top)
+		
+		# dot with value points (bot)
+		# B H Rq Rv x B P Rv H 3 => B R1 H P 3
+		Tv = torch.einsum('b p r h a , b r a k -> b p h r k', gv, bbr) + bbt
+		print(f'Tv shape = {Tv.shape}')
+		bot = torch.einsum('b h i j , b p h j a -> b i h p a', attentions, Tv)
+		# invert backbone frames
+		bbr_inv = torch.linalg.inv(bbr)
+		# affine transform
+		bot = torch.einsum('b r h p a , b r a k -> b h p r k', bot, bbr_inv) + bbt
+		# concat heads
+		bot = rearrange(bot, 'b h p r a -> b r (h p a)')
+		# transform back to initial dimension
+		bot = self.W_2(bot)
+		print(f'bot shape = {bot.shape}')
+		
+		# dot with matrix v (mid)
+		out = torch.einsum('b h i j , b h j d -> b h i d', attentions, rv)        
+		# concat heads
+		out = rearrange(out, "b h t d -> b t (h d)")
+		# transform back to initial dimension
+		out = self.W_0(out)
+		# sum top, mid, bottom
+		out = out + top
+		print(f'output shape = {out.shape}')
+		
+		return out
 
 class Backbone_Update(nn.Module):
 	def __init__(self, c_s):
@@ -470,9 +581,12 @@ class Backbone_Update(nn.Module):
 		b, r, c_s = x.shape
 		x = self.proj_down(x)
 		t = x[:, -3:]
-		q = torch.ones((b, 4, r))
+		q = torch.ones((b, 4, r)).to(x.get_device())
 		q[:, 1:] = x[:, :3]
 		q = q.div(torch.sqrt(1 + torch.square(q[:, 1]) + torch.square(q[:, 2]) + torch.square(q[:, 3])))
+		r = np.zeros((b, r, 3, 3)).to(x.get_device())
+		for i in range(b):
+			r[i] = Rotation.from_quat(q[i])
 		r = quaternion_to_matrix(q)
 		return r, t
 
@@ -498,7 +612,7 @@ class Structure_Module(nn.Module):
 		self.lin_s = nn.Linear(c_s, c_s)
 
 		# ipa module and its layer norm
-		self.ipa_module = IPA_Module()
+		self.ipa_module = IPA_Module(c_s, c_z)
 		self.ln_ipa = nn.LayerNorm(c_s)
 
 		# transition
@@ -509,7 +623,7 @@ class Structure_Module(nn.Module):
 		self.ln_s = nn.LayerNorm(c_s)
 
 		# update backbone
-		self.bb_update = BackboneUpdate(c_s)
+		self.bb_update = Backbone_Update(c_s)
 
 		# predict sidechain and backbone torsion angles
 		# linear projections to dim c
@@ -540,8 +654,8 @@ class Structure_Module(nn.Module):
 		J = x.shape[1]
 
 		# create x_ij matrices
-		x_ij = torch.zeros((B, I, J, 3))
-		x_ij_labels = torch.zeros((B, I, J, 3))
+		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
+		x_ij_labels = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		for i in range(I):
 			x_ij[:, i, :] = torch.matmul(bb_r[:, i], x) + bb_t[:, i]
 			x_ij_labels[:, i, :] = torch.matmul(bb_r_labels[:, i], x) + bb_t_labels[:, i]
@@ -556,7 +670,7 @@ class Structure_Module(nn.Module):
 		return fape
 
 
-	def forward(self, z, s_i, a_labels):
+	def forward(self, z, s_i, a_labels, T_labels):
 		b, r, c_s = s_i.shape
 		# apply layer norms to input
 		s_i = self.ln_s_i(s_i)
@@ -566,16 +680,16 @@ class Structure_Module(nn.Module):
 		s = self.lin_s(s_i)
 
 		# black hole initialization
-		bb_r = torch.zeros((b, r, 3, 3))
+		bb_r = torch.zeros((b, r, 3, 3)).to(z.get_device())
 		for i in range(3):
 			bb_r[:, :, i, i] = 1
-		bb_t = torch.zeros((b, r, 3))
+		bb_t = torch.zeros((b, r, 3)).to(z.get_device())
 
-		l_aux = []
+		L_aux = []
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
-			s = ipa_module(z, s, bb_r, bb_t) + s
+			s = self.ipa_module(z, s, bb_r, bb_t) + s
 
 			# apply layer norm and dropout
 			s = self.ln_ipa(self.dropout(s))
@@ -614,18 +728,15 @@ class Structure_Module(nn.Module):
 			L_fape = self.compute_fape(bb_r, bb_t, x, T_labels, x_labels, eps = 1e-12)
 
 			# sum fape and torsion loss for aux loss
-			l_aux.append(L_fape + L_torsion)
+			L_aux.append(L_fape + L_torsion)
 
-		# mean of l_aux	
-		l_aux = np.mean(l_aux)
+		# mean of L_aux	
+		L_aux = np.mean(L_aux)
 
-		# final coordinate prediction
-		R = torch.zeros((b, r, 3, 3))
-		R[:, :, 0, 0] = 1
-		R[:, :, 1, 1] = a[:, :, 0]
-		R[:, :, 1,] =  a[:, :, 0]
+		# final loss on final coordinates
+		L_fape = self.compute_fape(bb_r, bb_t, x, T_labels, x_labels, eps = 1e-4)
 
-
+		return x, L_fape, L_aux
 
 
 class Alphafold2_Model(nn.Module):
@@ -639,8 +750,9 @@ class Alphafold2_Model(nn.Module):
 		super().__init__()
 		self.rep_proj = Representation_Projector(r, s, c_m, c_z)
 		self.evoformer_trunk = Evoformer_Trunk(c_m, c_z, c)
+		self.structure_module = Structure_Module(r, c_m, c_z, c = c)
 	
-	def forward(self, seqs, evos):
+	def forward(self, seqs, evos, a_labels, T_labels):
 		# pass input through projections
 		prw_rep, msa_rep = self.rep_proj(seqs, evos)
 
@@ -648,4 +760,18 @@ class Alphafold2_Model(nn.Module):
 		prw_rep, msa_rep = self.evoformer_trunk(prw_rep, msa_rep)
 
 		# pass updated representations through structure module
+		x, L_fape, L_aux = self.structure_module(prw_rep, msa_rep[:, 0], a_labels, T_labels)
+		return x, L_fape, L_aux
 
+def main():
+	device = f'cuda:0' if torch.cuda.is_available() else 'cpu'
+	print(f"using device: {device}")
+	model = Alphafold2_Model(64, 8, 128, 64, 64).to(device)
+	seqs = torch.rand(5, 64, 21).to(device)
+	evos = torch.rand(5, 64, 21).to(device)
+	a_labels = torch.rand(5, 64, 4).to(device)
+	T_labels = (torch.rand(5, 64, 3, 3).to(device), torch.rand(5, 64, 3).to(device))
+	x, L_fape, L_aux = model(seqs, evos, a_labels, T_labels)
+
+if __name__ == '__main__':
+	main()
