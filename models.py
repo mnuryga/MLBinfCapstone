@@ -626,21 +626,22 @@ class Structure_Module(nn.Module):
 		# get dimensions
 		B, I, _, _ = bb_r.shape
 		J = x.shape[1]
+		x = x.unsqueeze(-1)
 
 		# create x_ij matrices
 		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		x_ij_labels = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		for i in range(I):
-			print(f'{bb_r[:, i].shape = }')
-			print(f'{x.shape = }')
-			x_ij[:, i, :] = torch.matmul(bb_r[:, i], x) + bb_t[:, i]
-			x_ij_labels[:, i, :] = torch.matmul(bb_r_labels[:, i], x) + bb_t_labels[:, i]
+			for j in range(J):
+				x_ij[:, i, j] = torch.bmm(torch.linalg.inv(bb_r[:, i]), x[:, j]).squeeze() + bb_t[:, i]
+				x_ij_labels[:, i, j] = torch.bmm(torch.linalg.inv(bb_r_labels[:, i]), x[:, j]).squeeze() + bb_t_labels[:, i]
 
 		# calculate d
-		d = torch.sqrt(torch.mse_loss(x_ij, x_ij_labels, reduction = 'none') + eps)
+		d = torch.sqrt(F.mse_loss(x_ij, x_ij_labels, reduction = 'none') + eps)
 
 		# calculate fape
-		fape = 0.1 * torch.mean(torch.minimum(10, d))
+		d[d > 10] = 10
+		fape = 0.1 * torch.mean(d)
 
 		# return
 		return fape
@@ -661,7 +662,7 @@ class Structure_Module(nn.Module):
 			bb_r[:, :, i, i] = 1
 		bb_t = torch.zeros((b, r, 3)).to(z.get_device())
 
-		L_aux = []
+		L_aux = torch.zeros((self.N_layer))
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
@@ -706,10 +707,10 @@ class Structure_Module(nn.Module):
 			L_fape = self.compute_fape(bb_r, bb_t, x, T_labels, x_labels, eps = 1e-12)
 
 			# sum fape and torsion loss for aux loss
-			L_aux.append(L_fape + L_torsion)
+			L_aux[l] = L_fape + L_torsion
 
 		# mean of L_aux	
-		L_aux = np.mean(L_aux)
+		L_aux = torch.mean(L_aux)
 
 		# final loss on final coordinates
 		L_fape = self.compute_fape(bb_r, bb_t, x, T_labels, x_labels, eps = 1e-4)
