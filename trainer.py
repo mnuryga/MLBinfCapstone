@@ -39,6 +39,7 @@ USE_DEBUG_DATA = False
 save_dir = './big'
 
 def main():
+
 	# get device
 	device = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 	print(f"using device: {device}")
