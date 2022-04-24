@@ -43,7 +43,12 @@ class Evo_Dataset(IterableDataset):
 		masks = batch.msks # which positions are valid
 		lengths = batch.lengths # seq length
 		evos = batch.evos # PSSM / evolutionary info
-		angs = batch.angs[:,:,0:2] # torsion angles: phi, psi
+		a = batch.angs[:,:,0:2] # torsion angles: phi, psi
+		angs = torch.zeros((batch.angs.shape[0], batch.angs.shape[1], 4))
+		angs[:, :, 0] = torch.cos(a[:, :, 0])
+		angs[:, :, 1] = torch.sin(a[:, :, 1])
+		angs[:, :, 2] = torch.cos(a[:, :, 2])
+		angs[:, :, 3] = torch.sin(a[:, :, 3])
 		
 		# use coords to create distance matrix from c-beta
 		# except use c-alpha for G

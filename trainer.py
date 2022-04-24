@@ -77,11 +77,10 @@ def main():
 			# loss output is a batch*crop_size*crop_size tensor
 			pred_dmat, pred_angs = evoformer(seqs, evos)
 			dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
-			angs_loss = loss_func(pred_angs, angs.long())
 
 			# multiply loss output element-wise by mask and take the mean
 			# loss = loss.mul(dmat_mask)
-			loss = torch.mean(dmat_loss)+torch.mean(angs_loss)
+			loss = torch.mean(dmat_loss)
 
 			# run backward pass and sum current loss
 			loss.backward()
@@ -123,10 +122,9 @@ def main():
 				# loss output is a batch*crop_size*crop_size tensor
 				pred_dmat, pred_angs = evoformer_valid(seqs, evos)
 				dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
-				angs_loss = loss_func(pred_angs, angs.long())
 				# multiply loss output element-wise by mask and take the mean
 				# loss = loss.mul(dmat_mask)
-				loss = torch.mean(dmat_loss)+torch.mean(angs_loss)
+				loss = torch.mean(dmat_loss)
 				valid_loss += loss.item()
 
 		# append current loss to prev_loss list
