@@ -562,7 +562,7 @@ class Backbone_Update(nn.Module):
 		r = unitquat_to_rotmat(q)
 		# r = torch.zeros((b, r, 3, 3)).to(x.get_device())
 		# for i in range(b):
-		# 	r[i] = Rotation.from_quat(q[i])
+		#   r[i] = Rotation.from_quat(q[i])
 		return r, t
 
 class Structure_Module(nn.Module):
@@ -621,21 +621,38 @@ class Structure_Module(nn.Module):
 
 
 	def compute_fape(self, bb_r, bb_t, x, T_labels, x_labels, eps = 1e-4):
+		'''
+		bb_r: (B x R x 3 x 3)
+		bb_t: (B x R x 3)
+		x: (B x R x 3)
+		'''
+		
 		# split labels
 		bb_r_labels, bb_t_labels = T_labels
 
 		# get dimensions
 		B, I, _, _ = bb_r.shape
 		J = x.shape[1]
-		x = x.unsqueeze(-1)
+#         x = x.unsqueeze(-1)
 
-		# create x_ij matrices
+		# create x_ij matrices (B x R x R x 3)
 		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		x_ij_labels = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
-		for i in range(I):
-			for j in range(J):
-				x_ij[:, i, j] = torch.bmm(torch.linalg.inv(bb_r[:, i]), x[:, j]).squeeze() + bb_t[:, i]
-				x_ij_labels[:, i, j] = torch.bmm(torch.linalg.inv(bb_r_labels[:, i]), x[:, j]).squeeze() + bb_t_labels[:, i]
+		
+		######## CHANGE ########
+		bb_r_inv = torch.linalg.inv(bb_r)
+		bb_r_labels_inv = torch.linalg.inv(bb_r_labels)
+		print(x.shape)
+		print(bb_r_inv.shape)
+		x_ij = torch.einsum('b i l m , b j l -> i b j m', bb_r_inv, x) + bb_t
+		x_ij = rearrange(x_ij, 'i b j m -> b i j m')
+		x_ij_labels = torch.einsum('b i l m , b j l -> i b j m', bb_r_labels_inv, x) + bb_t_labels
+		x_ij_labels = rearrange(x_ij_labels, 'i b j m -> b i j m')
+
+#       for i in range(I):
+#           for j in range(J):
+#               x_ij[:, i, j] = torch.bmm(torch.linalg.inv(bb_r[:, i]), x[:, j]).squeeze() + bb_t[:, i]
+#               x_ij_labels[:, i, j] = torch.bmm(torch.linalg.inv(bb_r_labels[:, i]), x[:, j]).squeeze() + bb_t_labels[:, i]
 
 		# calculate d
 		d = torch.sqrt(F.mse_loss(x_ij, x_ij_labels, reduction = 'none') + eps)
@@ -710,7 +727,7 @@ class Structure_Module(nn.Module):
 			# sum fape and torsion loss for aux loss
 			L_aux[l] = L_fape + L_torsion
 
-		# mean of L_aux	
+		# mean of L_aux 
 		L_aux = torch.mean(L_aux)
 
 		# final loss on final coordinates
