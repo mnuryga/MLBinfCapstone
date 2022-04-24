@@ -15,7 +15,7 @@ from tqdm import tqdm
 from einops import rearrange
 
 from datasets import Evo_Dataset
-from models import Evo_Model
+from models import Alphafold2_Model
 import os
 
 # CONSTANTS
@@ -51,16 +51,15 @@ def main():
 	valid_dataset = Evo_Dataset('valid-10', stride, batch_size, r, progress_bar, USE_DEBUG_DATA)
 	valid_loader = DataLoader(dataset = valid_dataset, batch_size = batch_size_valid, drop_last = True)
 
-	evoformer = nn.DataParallel(Evo_Model(r, s, c_m, c_z, c)).to(device)
-	evoformer.train()
+	model = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c)).to(device)
+	model.train()
 
 	# load state_dict from file if specified
 	if load_from_file:
-		evoformer.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
+		model.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
 
-	# initialize optimizer and loss function
-	optimizer = optim.Adam(evoformer.parameters(), lr = learning_rate)
-	loss_func = nn.CrossEntropyLoss(reduction = 'none')
+	# initialize optimizer
+	optimizer = optim.Adam(model.parameters(), lr = learning_rate)
 
 	# prev_loss is used to store validation losses -> training is stopped 
 	# once validation loss is above a 5-epoch rolling mean
@@ -68,25 +67,23 @@ def main():
 
 	# TRAINING
 	for epoch in range(num_epochs):
-		evoformer.train()
+		model.train()
 		sum_loss = 0
-		for t_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(train_loader, disable = True)):
+		for t_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(train_loader, disable = True)):
 			# send batch to device
-			seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
+			seqs, evos, masks, angs, coords, bb_rs, bb_ts = seqs.to(device), evos.to(device), masks.to(device), angs.to(device), coords.to(device), bb_rs.to(device), bb_ts.to(device)
 			optimizer.zero_grad()
-			# run forward pass and cross entropy loss - reduction is none, so
-			# loss output is a batch*crop_size*crop_size tensor
-			pred_dmat, pred_angs = evoformer(seqs, evos)
-			dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
 
-			# multiply loss output element-wise by mask and take the mean
-			# loss = loss.mul(dmat_mask)
-			loss = torch.mean(dmat_loss)
+			# run foward pass
+			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords)
+
+			# sum aux and fape as specified in paper
+			loss = 0.5*L_fape + 0.5*L_aux
 
 			# run backward pass and sum current loss
 			loss.backward()
 			sum_loss += loss.item()
-   
+
 			# check if loss is nan
 			if torch.isnan(loss).any().item():
 				print('loss is nan')
@@ -106,26 +103,24 @@ def main():
 				if not os.path.exists(save_dir):
 					os.makedirs(save_dir)
 				torch.save(checkpoint, f'{save_dir}/best_{epoch}.pth')
-                
-        # load model for validation
-		evoformer_valid = nn.DataParallel(Evo_Model(r, s, c_m, c_z, c), device_ids=[0]).to(device)
-		evoformer_valid.load_state_dict(torch.load(f'{save_dir}/best_{epoch}.pth')['state_dict'])
-		evoformer_valid.eval()
+
+		# load model for validation
+		model_valid = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c), device_ids=[0]).to(device)
+		model_valid.load_state_dict(torch.load(f'{save_dir}/best_{epoch}.pth')['state_dict'])
+		model_valid.eval()
 
 		# VALIDATION
 		valid_loss = 0
 		with torch.no_grad():
-			for v_batch_idx, (seqs, evos, dmat, dmat_mask, angs) in enumerate(tqdm(valid_loader, disable = True)):
+			for t_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(valid_loader, disable = True)):
 				# send batch to device
-				seqs, evos, dmat, dmat_mask, angs = seqs.to(device), evos.to(device), dmat.to(device), dmat_mask.to(device), angs.to(device)
+				seqs, evos, masks, angs, coords, bb_rs, bb_ts = seqs.to(device), evos.to(device), masks.to(device), angs.to(device), coords.to(device), bb_rs.to(device), bb_ts.to(device)
 
-				# run forward pass and cross entropy loss - reduction is none, so
-				# loss output is a batch*crop_size*crop_size tensor
-				pred_dmat, pred_angs = evoformer_valid(seqs, evos)
-				dmat_loss = loss_func(pred_dmat, dmat.long()).mul(dmat_mask.long())
-				# multiply loss output element-wise by mask and take the mean
-				# loss = loss.mul(dmat_mask)
-				loss = torch.mean(dmat_loss)
+				# run forward pass
+				pred_coords, L_fape, L_aux = model_valid(seqs, evos, angs, (bb_rs, bb_ts), coords)
+
+				# calculate loss
+				loss = 0.5*L_fape + 0.5*L_aux
 				valid_loss += loss.item()
 
 		# append current loss to prev_loss list
@@ -136,10 +131,10 @@ def main():
 		print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
 		print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size_valid:.6f}')
 
-		# if valid_loss exceedes the 5-epoch rolling sum, break from training
-# 		if valid_loss > np.mean(prev_loss[-5:]):
-# 			break
+		# # if valid_loss exceedes the 5-epoch rolling sum, break from training
+		# if valid_loss > np.mean(prev_loss[-5:]):
+		# 	break
 
 
 if __name__ == '__main__':
-    main()
+	main()

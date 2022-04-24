@@ -312,7 +312,7 @@ class Residue_Index_Projector(nn.Module):
 		return self.l(x)
 
 class Representation_Projector(nn.Module):
-	def __init__(self, r, s, c_m, c_z):
+	def __init__(self, s, c_m, c_z):
 		'''
 		Takes in batch of sequences and evos, and 
 		computes the outer-sum and the relative 
@@ -323,7 +323,6 @@ class Representation_Projector(nn.Module):
 		Author Matthew Uryga
 		'''
 		super().__init__()
-		self.r = r
 		self.s = s
 		self.c_m = c_m
 		self.c_z = c_z
@@ -403,9 +402,9 @@ class Evo_Model(nn.Module):
 
 	Author: Matthew Uryga
 	'''
-	def __init__(self, r, s, c_m, c_z, c):
+	def __init__(self, s, c_m, c_z, c):
 		super().__init__()
-		self.rep_proj = Representation_Projector(r, s, c_m, c_z)
+		self.rep_proj = Representation_Projector(s, c_m, c_z)
 		self.evoformer_trunk = Evoformer_Trunk(c_m, c_z, c)
 		self.proj_dmat = nn.Conv2d(c_z, 64, 1)
 		self.angs_pool = nn.MaxPool2d((1, 64))
@@ -573,7 +572,7 @@ class Structure_Module(nn.Module):
 
 	Author: Matthew Uryga
 	'''
-	def __init__(self, r, c_s, c_z, c = 64, N_layer = 8):
+	def __init__(self, c_s, c_z, c = 64, N_layer = 8):
 		super().__init__()
 		self.N_layer = N_layer
 		self.c = c
@@ -700,8 +699,8 @@ class Structure_Module(nn.Module):
 
 			# update backbone
 			new_r, new_t = self.bb_update(s)
+			bb_t = torch.mul(bb_r, torch.add(bb_t, new_t))
 			bb_r = torch.matmul(bb_r, new_r)
-			bb_t = torch.add(bb_t, new_t)
 
 			# torsion angle prediction
 			a = self.lin_a1(s) + self.lin_a2(s_i)
@@ -743,11 +742,11 @@ class Alphafold2_Model(nn.Module):
 
 	Author: Matthew Uryga, Yu-Kai "Steven" Wang
 	'''
-	def __init__(self, r, s, c_m, c_z, c):
+	def __init__(self, s, c_m, c_z, c):
 		super().__init__()
-		self.rep_proj = Representation_Projector(r, s, c_m, c_z)
+		self.rep_proj = Representation_Projector(s, c_m, c_z)
 		self.evoformer_trunk = Evoformer_Trunk(c_m, c_z, c)
-		self.structure_module = Structure_Module(r, c_m, c_z, c = c)
+		self.structure_module = Structure_Module(c_m, c_z, c = c)
 	
 	def forward(self, seqs, evos, a_labels, T_labels, x_labels):
 		# pass input through projections
