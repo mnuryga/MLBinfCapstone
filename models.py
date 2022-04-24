@@ -11,6 +11,7 @@ import numpy as np
 import sys
 from einops import rearrange, repeat
 from scipy.spatial.transform import Rotation
+from roma import unitquat_to_rotmat
 
 class MHSA(nn.Module):
 	def __init__(self, c_m, c_z, heads=8, dim_head=None, bias=True):
@@ -556,14 +557,17 @@ class Backbone_Update(nn.Module):
 	def forward(self, x):
 		b, r, c_s = x.shape
 		x = self.proj_down(x)
-		t = x[:, -3:]
-		q = torch.ones((b, 4, r)).to(x.get_device())
-		q[:, 1:] = x[:, :3]
-		q = q.div(torch.sqrt(1 + torch.square(q[:, 1]) + torch.square(q[:, 2]) + torch.square(q[:, 3])))
-		r = np.zeros((b, r, 3, 3)).to(x.get_device())
-		for i in range(b):
-			r[i] = Rotation.from_quat(q[i])
-		r = quaternion_to_matrix(q)
+		t = x[:, :, -3:]
+		q = torch.ones((b, r, 4)).to(x.get_device())
+		q[:, :, 1:] = x[:, :, :3]
+		q_coeff = torch.sqrt(1 + torch.square(q[:, :, 1]) + torch.square(q[:, :, 2]) + torch.square(q[:, :, 3]))
+		q_coeff = torch.tile(q_coeff.unsqueeze(-1), (1, 1, 4))
+		q[:, :, 0] = q[:, :, 0].div(q_coeff[:, :, 0])
+		q[:, :, 1:] = q[:, :, 1:].div(q_coeff[:, :, 1:])
+		r = unitquat_to_rotmat(q)
+		# r = torch.zeros((b, r, 3, 3)).to(x.get_device())
+		# for i in range(b):
+		# 	r[i] = Rotation.from_quat(q[i])
 		return r, t
 
 class Structure_Module(nn.Module):
@@ -607,12 +611,12 @@ class Structure_Module(nn.Module):
 		self.lin_a2 = nn.Linear(c_s, c)
 
 		# ffn 1 for a
-		self.lin_a3 = nn.Linear(c_s, c)
-		self.lin_a4 = nn.Linear(c_s, c)
+		self.lin_a3 = nn.Linear(c, c)
+		self.lin_a4 = nn.Linear(c, c)
 
 		# ffn 2 for a
-		self.lin_a5 = nn.Linear(c_s, c)
-		self.lin_a6 = nn.Linear(c_s, c)
+		self.lin_a5 = nn.Linear(c, c)
+		self.lin_a6 = nn.Linear(c, c)
 
 		# project down to dim 4 for torsion angles
 		# 0, 1 represent phi, 2, 3 represent psi
@@ -621,18 +625,20 @@ class Structure_Module(nn.Module):
 		self.loss_func = nn.MSELoss()
 
 
-	def compute_fape(bb_r, bb_t, x, T_labels, x_labels, eps = 1e-4):
+	def compute_fape(self, bb_r, bb_t, x, T_labels, x_labels, eps = 1e-4):
 		# split labels
 		bb_r_labels, bb_t_labels = T_labels
 
 		# get dimensions
-		B, I, _, _ = bb_r.shape[0]
+		B, I, _, _ = bb_r.shape
 		J = x.shape[1]
 
 		# create x_ij matrices
 		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		x_ij_labels = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		for i in range(I):
+			print(f'{bb_r[:, i].shape = }')
+			print(f'{x.shape = }')
 			x_ij[:, i, :] = torch.matmul(bb_r[:, i], x) + bb_t[:, i]
 			x_ij_labels[:, i, :] = torch.matmul(bb_r_labels[:, i], x) + bb_t_labels[:, i]
 
@@ -646,7 +652,7 @@ class Structure_Module(nn.Module):
 		return fape
 
 
-	def forward(self, z, s_i, a_labels, T_labels):
+	def forward(self, z, s_i, a_labels, T_labels, x_labels):
 		b, r, c_s = s_i.shape
 		# apply layer norms to input
 		s_i = self.ln_s_i(s_i)
@@ -665,16 +671,16 @@ class Structure_Module(nn.Module):
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
-			s = self.ipa_module(z, s, bb_r, bb_t) + s
+			# s = self.ipa_module(z, s, bb_r, bb_t) + s
 
 			# apply layer norm and dropout
 			s = self.ln_ipa(self.dropout(s))
 
 			# transition
 			# pass through ffn
-			s_t = F.relu(self.lin_a1(s))
-			s_t = F.relu(self.lin_a2(s_t))
-			s = self.lin_a3(s_t) + s
+			s_t = F.relu(self.lin_s1(s))
+			s_t = F.relu(self.lin_s2(s_t))
+			s = self.lin_s3(s_t) + s
 
 			# apply layer norm and dropout
 			s = self.ln_s(self.dropout(s))
@@ -693,8 +699,10 @@ class Structure_Module(nn.Module):
 			# calculate torsion angle loss
 			l_phi = torch.sqrt(torch.square(a[:, :, 0]) + torch.square(a[:, :, 1]))
 			l_psi = torch.sqrt(torch.square(a[:, :, 2]) + torch.square(a[:, :, 3]))
-			a = a[:, :, :2]/l_phi
-			a = a[:, :, 2:]/l_psi
+			l_phi = torch.tile(l_phi.unsqueeze(-1), (1, 1, 2))
+			l_psi = torch.tile(l_psi.unsqueeze(-1), (1, 1, 2))
+			a[:, :, :2] = a[:, :, :2]/l_phi
+			a[:, :, 2:] = a[:, :, 2:]/l_psi
 			L_torsion = self.loss_func(a, a_labels)
 			L_anglenorm = torch.mean(torch.abs(l_phi - 1) + torch.abs(l_psi - 1))
 			L_torsion = L_torsion + 0.02*L_anglenorm
@@ -728,7 +736,7 @@ class Alphafold2_Model(nn.Module):
 		self.evoformer_trunk = Evoformer_Trunk(c_m, c_z, c)
 		self.structure_module = Structure_Module(r, c_m, c_z, c = c)
 	
-	def forward(self, seqs, evos, a_labels, T_labels):
+	def forward(self, seqs, evos, a_labels, T_labels, x_labels):
 		# pass input through projections
 		prw_rep, msa_rep = self.rep_proj(seqs, evos)
 
@@ -736,7 +744,7 @@ class Alphafold2_Model(nn.Module):
 		prw_rep, msa_rep = self.evoformer_trunk(prw_rep, msa_rep)
 
 		# pass updated representations through structure module
-		x, L_fape, L_aux = self.structure_module(prw_rep, msa_rep[:, 0], a_labels, T_labels)
+		x, L_fape, L_aux = self.structure_module(prw_rep, msa_rep[:, 0], a_labels, T_labels, x_labels)
 		return x, L_fape, L_aux
 
 def main():
@@ -747,7 +755,8 @@ def main():
 	evos = torch.rand(5, 64, 21).to(device)
 	a_labels = torch.rand(5, 64, 4).to(device)
 	T_labels = (torch.rand(5, 64, 3, 3).to(device), torch.rand(5, 64, 3).to(device))
-	x, L_fape, L_aux = model(seqs, evos, a_labels, T_labels)
+	x_labels = torch.rand(5, 64, 3).to(device)
+	x, L_fape, L_aux = model(seqs, evos, a_labels, T_labels, x_labels)
 
 if __name__ == '__main__':
 	main()
