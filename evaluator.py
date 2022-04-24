@@ -30,8 +30,8 @@ stride = 32
 mask_size = 1000
 
 progress_bar = True
-threshold = False
-USE_DEBUG_DATA = True
+threshold = True
+USE_DEBUG_DATA = False
 
 # what L/k values are being used for accuracy calculation
 seq_ks = [1, 2, 5, 10, 20, 50, 100]
@@ -48,9 +48,9 @@ def main():
 
 	# create and load evoformer
 	# evo_model = Evo_Model(batch_size, r, s, c_m, c_z, c, device = device).to(device)
-	evo_model = nn.DataParallel(Evo_Model(64, r, s, c_m, c_z, c), device_ids=[0]).to(device)
+	evo_model = nn.DataParallel(Evo_Model(r, s, c_m, c_z, c), device_ids=[0]).to(device)
 	evo_model.eval()
-	evo_model = evo_model.load_state_dict(torch.load('weight_ln_3e/best.pth')['state_dict'])
+	evo_model.load_state_dict(torch.load('ln_6e_fixed_con/best_3.pth')['state_dict'])
 
 	# create test dataset that batches by sequence
 	test_dataset = Evo_Dataset('test', stride, batch_size, r, progress_bar, USE_DEBUG_DATA, by_seq = True)

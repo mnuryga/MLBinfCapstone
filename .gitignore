@@ -1,4 +1,7 @@
 sidechainnet_data/
 __pycache__/
 checkpoints/
+.ipynb_checkpoints/
 *.out
+out/
+weights/
