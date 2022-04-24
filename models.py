@@ -35,7 +35,7 @@ class MHSA(nn.Module):
 		
 		self.fc_scale_bias = nn.Linear(c_z, heads)
 
-	def forward(self, x, bias_rep=None, mask=None):
+	def forward(self, x, bias_rep=None):
 		'''
 		x: input for self-attention
 		bias_rep: pair-wise bias
@@ -46,10 +46,6 @@ class MHSA(nn.Module):
 		
 		# dot product attention
 		scaled_dot_prod = torch.einsum('b h i d , b h j d -> b h i j', q, k) * self.scale_factor
-
-		if mask is not None:
-			assert mask.shape == scaled_dot_prod.shape[2:]
-			scaled_dot_prod = scaled_dot_prod.masked_fill(mask, -np.inf)
 
 		# pair-wise bias
 		scaled_bias = 0
@@ -83,10 +79,8 @@ class MSA_Stack(nn.Module):
 		'''
 		super().__init__()
 		# batches of row wise MHSA
-# 		self.row_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=None) for i in range(batch_size)])
 		self.row_MHSA = MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
 		# batches of col wise MHSA
-# 		self.col_MHSA = nn.ModuleList([MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=False, dim_head=None) for i in range(batch_size)])
 		self.col_MHSA = MHSA(c_m=c_m, c_z=c_z, heads=heads, bias=False, dim_head=dim_head)
 		# transition MLP
 		self.fc1 = nn.Linear(c_m, 4 * c_m)
