@@ -458,50 +458,54 @@ class IPA_Module(nn.Module):
 		# pair_rep to pair_bias
 		pair_bias = self.fc1(pair_rep)
 		pair_bias = rearrange(pair_bias, 'b i j h -> b h i j')
-	#         print(f'pair bias shape = {pair_bias.shape}')
+#         print(f'pair bias shape = {pair_bias.shape}')
 		
 		### SINGLE REP SQR ATTENTION
 		
 		# get q and v for attention training (B x P x R x H x 3)
 		qk = self.to_qk(sing_rep)
-	#         print(f'qk shape = {qk.shape}')
+#         print(f'qk shape = {qk.shape}')
 		gq, gk = tuple(rearrange(qk, 'b r (d k p a) -> k b p r d a', k=2, a=3, p=self.n_qp))
-	#         print(f'qk shape = {gq.shape}')
+#         print(f'qk shape = {gq.shape}')
 		gv = rearrange(self.to_v(sing_rep), 'b r (d p a) -> b p r d a', a=3, p=self.n_pv)
-	#         print(f'gv shape = {gv.shape}')
+#         print(f'gv shape = {gv.shape}')
 		
 		### SINGLE REP DOT ATTENTION
 		
 		# get q, v, k matrices for attention training (B x H x R x C)
 		qkv = self.to_qvk(sing_rep)
-	#         print(f'qkv shape = {qkv.shape}')
+#         print(f'qkv shape = {qkv.shape}')
 		rq, rk, rv = tuple(rearrange(qkv, 'b r (d k h) -> k b h r d', k=3, h=self.heads))
-	#         print(f'qkv shape = {rq.shape}')
-		
+#         print(f'qkv shape = {rq.shape}')
+	
 		# dot product attention (B x H x R x R)
 		dot_prod_aff = torch.einsum('b h i d , b h j d -> b h i j', rq, rk) * (self.dim_head ** -0.5)
-	#         print(f'dot_prod_aff shape = {dot_prod_aff.shape}')
+#         print(f'dot_prod_aff shape = {dot_prod_aff.shape}')
 		
 		# square dist attention
 		Tq = torch.einsum('b p r h a , b r a k -> p h b r k', gq, bbr) + bbt
-		Tk = -1 * torch.einsum('b p r h a , b r a k -> p h b r k', gk, bbr) + bbt
-	#         print(f'Tq shape = {Tq.shape}')
-		# dot product
-		sqr_dist_aff = torch.einsum('p h b i k , p h b j k -> b p h i j k', Tq, Tk)
+		Tk = torch.einsum('b p r h a , b r a k -> p h b r k', gk, bbr) + bbt
+		
+		# tile to square and deduct
+		r = Tq.shape[-2]
+		Tq = repeat(Tq, 'p h b r k -> p h b r i k', i=r)
+		Tk = repeat(Tk, 'p h b r k -> p h b i r k', i=r)
+		sqr_dist_aff = Tq - Tk  # p h b r r k
+		sqr_dist_aff = rearrange(sqr_dist_aff, 'p h b i j k -> b p h i j k')
 		# norm square
 		sqr_dist_aff = torch.sum(torch.square(torch.norm(sqr_dist_aff, dim=-1)), dim=1) # b h r r
-	#         print(f'norm_sqr shape = {sqr_dist_aff.shape}')
+#         print(f'norm_sqr shape = {sqr_dist_aff.shape}')
 		# multiply head weight
 		head_w = (F.softplus(self.gamma.repeat(self.heads)) * self.w_c) / 2
-	#         print(f'head_w shape = {head_w.shape}')
-	#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')        
+#         print(f'head_w shape = {head_w.shape}')
+#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')        
 		sqr_dist_aff = rearrange(rearrange(sqr_dist_aff, 'b h i j -> b i j h') * head_w, 'b i j h -> b h i j')
-	#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')
+#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')
 		
 		# sum attentions with bias then softmax (B x H x R x R)
 		attentions = pair_bias + dot_prod_aff + sqr_dist_aff
 		attentions = torch.softmax(self.w_l * attentions, dim=-1)
-	#         print(f'attentions after softmax shape = {attentions.shape}')
+#         print(f'attentions after softmax shape = {attentions.shape}')
 		
 		
 		# dot with pair values (top) 
@@ -509,14 +513,14 @@ class IPA_Module(nn.Module):
 		top = torch.einsum('b h i j , b h j d -> b h i d', rearrange(attentions, 'b h i j -> b i h j'), pair_rep) # B H Rq R x B C R R -> B C R R
 		# concat heads
 		top = rearrange(top, 'b r h c -> b r (h c)')
-	#         print(f'top shape = {top.shape}')
+#         print(f'top shape = {top.shape}')
 		# transform back to initial dimension
 		top = self.W_1(top)
 		
 		# dot with value points (bot)
 		# B H Rq Rv x B P Rv H 3 => B R1 H P 3
 		Tv = torch.einsum('b p r h a , b r a k -> p h b r k', gv, bbr) + bbt
-	#         print(f'Tv shape = {Tv.shape}')
+#         print(f'Tv shape = {Tv.shape}')
 		bot = torch.einsum('b h i j , p h b j a -> b i h p a', attentions, Tv)
 		# invert backbone frames
 		bbr_inv = torch.linalg.inv(bbr)
@@ -526,7 +530,7 @@ class IPA_Module(nn.Module):
 		bot = rearrange(bot, 'h p b r a -> b r (h p a)')
 		# transform back to initial dimension
 		bot = self.W_2(bot)
-	#         print(f'bot shape = {bot.shape}')
+#         print(f'bot shape = {bot.shape}')
 		
 		# dot with matrix v (mid)
 		out = torch.einsum('b h i j , b h j d -> b h i d', attentions, rv)        
@@ -536,7 +540,7 @@ class IPA_Module(nn.Module):
 		out = self.W_0(out)
 		# sum top, mid, bottom
 		out = out + top
-	#         print(f'output shape = {out.shape}')
+#         print(f'output shape = {out.shape}')
 		
 		return out
 
