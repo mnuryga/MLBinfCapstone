@@ -20,23 +20,23 @@ import os
 
 # CONSTANTS
 num_gpu = 4
-batch_size = 64 * num_gpu
+batch_size = 16 * num_gpu
 batch_size_gpu = batch_size // num_gpu
-batch_size_valid = 64
+batch_size_valid = 16
 r = 64
-c_m = 128
-c_z = 64
-c = 8
-s = 8
+c_m = 256
+c_z = 128
+c = 16
+s = 16
 
 stride = 64
-num_epochs = 6
-learning_rate = 0.001
+num_epochs = 3
+learning_rate = 0.005
 progress_bar = True
 save_to_file = True
 load_from_file = False
 USE_DEBUG_DATA = False
-save_dir = './ln_6e_fixed'
+save_dir = './big'
 
 def main():
 	# get device
@@ -55,7 +55,7 @@ def main():
 
 	# load state_dict from file if specified
 	if load_from_file:
-		evoformer.load_state_dict(torch.load('checkpoints/best.pth')['state_dict'])
+		evoformer.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
 
 	# initialize optimizer and loss function
 	optimizer = optim.Adam(evoformer.parameters(), lr = learning_rate)
@@ -104,11 +104,11 @@ def main():
 				}
 				if not os.path.exists(save_dir):
 					os.makedirs(save_dir)
-				torch.save(checkpoint, f'{save_dir}/best.pth')
+				torch.save(checkpoint, f'{save_dir}/best_{epoch}.pth')
                 
         # load model for validation
 		evoformer_valid = nn.DataParallel(Evo_Model(r, s, c_m, c_z, c), device_ids=[0]).to(device)
-		evoformer_valid.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
+		evoformer_valid.load_state_dict(torch.load(f'{save_dir}/best_{epoch}.pth')['state_dict'])
 		evoformer_valid.eval()
 
 		# VALIDATION

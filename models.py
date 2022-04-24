@@ -104,11 +104,6 @@ class MSA_Stack(nn.Module):
 		x = self.ln1(x)
 		bias_rep = self.ln2(bias_rep)
 
-# 		# row wise gated self-attention with pair bias
-# 		for i, mhsa in enumerate(self.row_MHSA):
-# 			res[i] = mhsa(x[i].clone(), bias_rep[i].clone())
-# 		x = x + res # add residuals
-
 		# row wise gated self-attention with pair bias, loop through batch
 		for i in range(x.shape[0]):
 			res[i] = self.row_MHSA(x[i].clone(), bias_rep[i].clone())
@@ -120,12 +115,6 @@ class MSA_Stack(nn.Module):
 
 		# layer norms
 		x = self.ln3(x)
-
-# 		# column wise gated self-attention
-# 		x_trans = rearrange(x, 'b i j k -> b j i k')
-# 		for i, mhsa in enumerate(self.col_MHSA):
-# 			res2[i] = rearrange(mhsa(x_trans[i]), 'i j k -> j i k')
-# 		x = x + res2 # add residuals
 
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')
@@ -196,10 +185,8 @@ class Pair_Stack(nn.Module):
 		super().__init__()
 		# batches of row wise MHSA
 		self.start_MHSA = MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
-# 		self.start_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
 		# batches of col wise MHSA
 		self.end_MHSA = MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head)
-# 		self.end_MHSA = nn.ModuleList([MHSA(c_m=c_z, c_z=c_z, heads=heads, bias=True, dim_head=dim_head) for i in range(batch_size)])
 		# transition MLP
 		self.fc1 = nn.Linear(c_z, 4 * c_z)
 		self.fc2 = nn.Linear(4 * c_z, c_z)
@@ -214,11 +201,6 @@ class Pair_Stack(nn.Module):
 		# layer norms
 		x = self.ln1(x)
 
-# 		# row wise gated self-attention with pair bias
-# 		for i, mhsa in enumerate(self.start_MHSA):
-# 			res[i] = mhsa(x[i].clone(), x[i].clone())
-# 		x = x + res # add residuals
-
 		# row wise gated self-attention with pair bias
 		for i in range(x.shape[0]):
 			res[i] = self.start_MHSA(x[i].clone(), x[i].clone())
@@ -230,12 +212,6 @@ class Pair_Stack(nn.Module):
 
 		# layer norms
 		x = self.ln2(x)
-
-# 		# column wise gated self-attention
-# 		x_trans = rearrange(x, 'b i j k -> b j i k')
-# 		for i, mhsa in enumerate(self.end_MHSA):
-# 			res2[i] = rearrange(mhsa(x_trans[i].clone(), x_trans[i].clone()), 'i j k -> j i k')
-# 		x = x + res2 # add residuals
 
 		# column wise gated self-attention
 		x_trans = rearrange(x, 'b i j k -> b j i k')

@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH --job-name=ln_6e_fixed
+#SBATCH --job-name=big
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=stevenjust4edu@gmail.com
-#SBATCH --time=300
+#SBATCH --time=360
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:4
 #SBATCH --output=run_%j.out #append job id
