@@ -12,6 +12,7 @@ import sidechainnet as scn
 import numpy as np
 from tqdm import tqdm
 import sys
+from einops import rearrange
 
 class Evo_Dataset(IterableDataset):
 	def __init__(self, key, stride, batch_size, r, progress_bar, USE_DEBUG_DATA, by_seq = False):
@@ -53,11 +54,8 @@ class Evo_Dataset(IterableDataset):
 		# get ever 14th coord starting at 0, 1, 2
 		n_coords = batch.crds[:, ::14, :] # N
 		c_alpha_coords = batch.crds[:, 1::14, :] # C_alpha
-		c_coords = batch.crds[:, ::14, :] # C
+		c_coords = batch.crds[:, 2::14, :] # C
 		
-
-
-
 		# use coords to create distance matrix from c-beta
 		# except use c-alpha for G
 		# coords[:, 4, :] is c-beta, and coords[:, 1, :] is c-alpha
@@ -75,12 +73,12 @@ class Evo_Dataset(IterableDataset):
 		# # create matrix mask (0 means i,j invalid)
 		# dmat_masks = torch.einsum('bi,bj->bij', masks, masks)
 		
-		return seqs, evos, angs, masks, c_alpha_coords, bb_r, bb_t
+		return seqs, evos, angs, masks, n_coords, c_alpha_coords, c_coords
 
 	def __iter__(self):
 		# loop over sets of sequences with same length
 		for batch_idx, batch in enumerate(tqdm(self.data[self.key], disable = not self.progress_bar)):
-			seqs, evos, angs, masks, coords = self.get_seq_features(batch)
+			seqs, evos, angs, masks, n_coords, c_alpha_coords, c_coords = self.get_seq_features(batch)
 
 			# get dimensions for feature matrix
 			B = seqs.shape[0]
@@ -91,10 +89,29 @@ class Evo_Dataset(IterableDataset):
 			evos = F.pad(evos, (0, 0, 0, self.r), 'constant', 0)
 			masks = F.pad(masks, (0, self.r), 'constant', 0)
 			angs = F.pad(angs, (0, self.r), 'constant', 0)
-			coords = F.pad(coords, (0, 0, 0, self.r), 'constant', 0)
-			# PAD T
 
-			for seq, evo, mask, ang, coord, bb_r, bb_t in zip(seqs, evos, masks, angs, coords, bb_rs, bb_ts):
+			x1s = F.pad(n_coords, (0, 0, 0, self.r), 'constant', 0)
+			x2s = F.pad(c_alpha_coords, (0, 0, 0, self.r), 'constant', 0)
+			x3s = F.pad(c_coords, (0, 0, 0, self.r), 'constant', 0)
+			
+			# get rigit from 3 points
+			bb_rs = torch.zeros(B, L+self.r, 3, 3)
+			bb_ts = torch.zeros(B, L+self.r, 3)
+
+			# gram-schmidt process
+			for i, (x1, x2, x3) in enumerate(zip(x1s, x2s, x3s)):
+				v1 = x3 - x2
+				v2 = x1 - x2
+				e1 = v1/torch.linalg.norm(v1)
+				dp = torch.bmm(e1.view(L+self.r, 1, 3), v2.view(L+self.r, 3, 1)).squeeze(-1)
+				u2 = v2 - e1 * (dp)
+				e2 = u2/torch.linalg.norm(u2)
+				e3 = e1.mul(e2)
+				bb = torch.cat((e1, e2, e3), dim = -1)
+				bb_rs[i] = torch.reshape(bb, (L+self.r, 3, 3))
+				bb_ts[i] = x2
+
+			for seq, evo, mask, ang, coord, bb_r, bb_t in zip(seqs, evos, masks, angs, x2s, bb_rs, bb_ts):
 				# get crops of length r
 				# generate starting position for window
 				if not self.by_seq:
