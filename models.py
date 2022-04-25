@@ -553,11 +553,12 @@ class Backbone_Update(nn.Module):
 		x = self.proj_down(x)
 		t = x[:, :, -3:]
 		q = torch.ones((b, r, 4)).to(x.get_device())
-		q[:, :, 1:] = x[:, :, :3]
+		q = torch.cat((torch.ones(b, r, 1).to(x.get_device()), x[:, :, :3]), dim = -1)
 		q_coeff = torch.sqrt(1 + torch.square(q[:, :, 1]) + torch.square(q[:, :, 2]) + torch.square(q[:, :, 3]))
 		q_coeff = torch.tile(q_coeff.unsqueeze(-1), (1, 1, 4))
-		q[:, :, 0] = q[:, :, 0].div(q_coeff[:, :, 0])
-		q[:, :, 1:] = q[:, :, 1:].div(q_coeff[:, :, 1:])
+		q1 = q[:, :, 0].div(q_coeff[:, :, 0]).unsqueeze(-1)
+		q2 = q[:, :, 1:].div(q_coeff[:, :, 1:])
+		qq = torch.cat((q1, q2), dim = -1)
 		r = unitquat_to_rotmat(q)
 		# r = torch.zeros((b, r, 3, 3)).to(x.get_device())
 		# for i in range(b):
@@ -653,13 +654,19 @@ class Structure_Module(nn.Module):
 #               x_ij_labels[:, i, j] = torch.bmm(torch.linalg.inv(bb_r_labels[:, i]), x[:, j]).squeeze() + bb_t_labels[:, i]
 
 		# calculate d
-		d = torch.sqrt(F.mse_loss(x_ij, x_ij_labels, reduction = 'none') + eps)
+		d = torch.sqrt(torch.square(torch.norm(x_ij - x_ij_labels, dim = -1)) + eps)
 
 		# 0 out loss for masked sequences
-		d[masks == 0, :, :] = 0
+		mask2d = torch.ones((B, I, J)).to(bb_r.get_device())
+		for i, m in enumerate(masks):
+			mask2d[i][m==0, :] = 0
+			mask2d[i][:, m==0] = 0
+
+		# d[mask2d == 0] = 0
+		d = torch.mul(d, mask2d)
 
 		# calculate fape
-		d[d > 10] = 10
+		d = torch.clamp(d, max = 10)
 		fape = 0.1 * torch.mean(d)
 
 		# return
@@ -716,9 +723,10 @@ class Structure_Module(nn.Module):
 			l_psi = torch.sqrt(torch.square(a[:, :, 2]) + torch.square(a[:, :, 3]))
 			l_phi = torch.tile(l_phi.unsqueeze(-1), (1, 1, 2))
 			l_psi = torch.tile(l_psi.unsqueeze(-1), (1, 1, 2))
-			a[:, :, :2] = a[:, :, :2]/l_phi
-			a[:, :, 2:] = a[:, :, 2:]/l_psi
-			L_torsion = self.loss_func(a, a_labels)
+			a1 = a[:, :, :2]/l_phi
+			a2 = a[:, :, 2:]/l_psi
+			aa = torch.cat((a1, a2), dim = -1)
+			L_torsion = self.loss_func(aa, a_labels)
 			L_anglenorm = torch.mean(torch.abs(l_phi - 1) + torch.abs(l_psi - 1))
 			L_torsion = L_torsion + 0.02*L_anglenorm
 
