@@ -572,7 +572,7 @@ class Structure_Module(nn.Module):
 
 	Author: Matthew Uryga
 	'''
-	def __init__(self, c_s, c_z, c = 64, N_layer = 8):
+	def __init__(self, r, c_s, c_z, c = 64, N_layer = 8):
 		super().__init__()
 		self.N_layer = N_layer
 		self.c = c
@@ -640,8 +640,12 @@ class Structure_Module(nn.Module):
 		
 		######## CHANGE ########
 		bb_r_inv = torch.linalg.inv(bb_r)
+<<<<<<< Updated upstream
 		bb_r_labels_inv = torch.linalg.pinv(bb_r_labels)
 		# bb_r_labels_inv = bb_r_labels
+=======
+		bb_r_labels_inv = torch.linalg.inv(bb_r_labels)
+>>>>>>> Stashed changes
 		x_ij = torch.einsum('b i l m , b j l -> i b j m', bb_r_inv, x) + bb_t
 		x_ij = rearrange(x_ij, 'i b j m -> b i j m')
 		x_ij_labels = torch.einsum('b i l m , b j l -> i b j m', bb_r_labels_inv, x) + bb_t_labels
@@ -681,7 +685,7 @@ class Structure_Module(nn.Module):
 			bb_r[:, :, i, i] = 1
 		bb_t = torch.zeros((b, r, 3)).to(z.get_device())
 
-		L_aux = torch.zeros((self.N_layer))
+		L_aux = torch.zeros((self.N_layer)).to(z.get_device())
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
@@ -701,9 +705,13 @@ class Structure_Module(nn.Module):
 
 			# update backbone
 			new_r, new_t = self.bb_update(s)
+<<<<<<< Updated upstream
 			prod = torch.einsum('b r i j, b r i k -> b r i k', bb_r, new_t.unsqueeze(-1)).squeeze()
 			bb_t = torch.add(bb_t, prod)
+=======
+>>>>>>> Stashed changes
 			bb_r = torch.matmul(bb_r, new_r)
+			bb_t = torch.add(bb_t, new_t)
 
 			# torsion angle prediction
 			a = self.lin_a1(s) + self.lin_a2(s_i)
@@ -728,7 +736,7 @@ class Structure_Module(nn.Module):
 
 			# sum fape and torsion loss for aux loss
 			L_aux[l] = L_fape + L_torsion
-
+        
 		# mean of L_aux 
 		L_aux = torch.mean(L_aux)
 
