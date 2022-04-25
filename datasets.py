@@ -88,7 +88,7 @@ class Evo_Dataset(IterableDataset):
 			seqs = F.pad(seqs, (0, 1, 0, self.r), 'constant', 0)
 			evos = F.pad(evos, (0, 0, 0, self.r), 'constant', 0)
 			masks = F.pad(masks, (0, self.r), 'constant', 0)
-			angs = F.pad(angs, (0, self.r), 'constant', 0)
+			angs = F.pad(angs, (0, 0, 0, self.r), 'constant', 0)
 
 			x1s = F.pad(n_coords, (0, 0, 0, self.r), 'constant', 0)
 			x2s = F.pad(c_alpha_coords, (0, 0, 0, self.r), 'constant', 0)
@@ -117,7 +117,7 @@ class Evo_Dataset(IterableDataset):
 				if not self.by_seq:
 					start_i = 0 if L < 64 else np.random.randint(0, 64)
 					for i in range(start_i, L, self.stride):
-						yield seq[i:i+self.r], evo[i:i+self.r], mask[i:i+self.r, i:i+self.r], ang[i:i+self.r], coord[i:i+self.r], bb_r[i:i+self.r], bb_t[i:i+self.r]
+						yield seq[i:i+self.r], evo[i:i+self.r], mask[i:i+self.r], ang[i:i+self.r], coord[i:i+self.r], bb_r[i:i+self.r], bb_t[i:i+self.r]
 				else:
 					yield seq, evo, mask, ang, coord, bb_r, bb_t
 
@@ -126,12 +126,8 @@ class Evo_Dataset(IterableDataset):
 def main():
 	ds = Evo_Dataset('train', 128, 5, 64, False, True)
 	dl = DataLoader(dataset = ds, batch_size = 5, num_workers = 0,  drop_last = True)
-	for i, (pr, mr, dm, mm) in enumerate(dl):
-		print(f'pr.shape={pr.shape}')
-		print(f'mr.shape={mr.shape}')
-		print(f'dm.shape={dm.shape}')
-		print(f'mm.shape={mm.shape}')
-		sys.exit(0)
+	for i, (seq, evo, mask, ang, coord, bb_r, bb_t) in enumerate(dl):
+		pass
 
 if __name__ == '__main__':
 	main()
