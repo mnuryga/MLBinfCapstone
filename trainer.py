@@ -75,8 +75,7 @@ def main():
 			optimizer.zero_grad()
 
 			# run foward pass
-			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords)
-			sys.exit(0)
+			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
 			# sum aux and fape as specified in paper
 			loss = 0.5*L_fape + 0.5*L_aux

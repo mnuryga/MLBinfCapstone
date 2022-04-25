@@ -111,6 +111,10 @@ class Evo_Dataset(IterableDataset):
 				bb_rs[i] = torch.reshape(bb, (L+self.r, 3, 3))
 				bb_ts[i] = x2
 
+			# # when masked out, set bb_rs to 1 so that the matrix is invertible
+			# print(f'{bb_rs[masks == 0].shape = }')
+			# bb_rs[masks == 0][:] = torch.eye(3)
+
 			for seq, evo, mask, ang, coord, bb_r, bb_t in zip(seqs, evos, masks, angs, x2s, bb_rs, bb_ts):
 				# get crops of length r
 				# generate starting position for window
