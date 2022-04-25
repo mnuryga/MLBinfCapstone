@@ -20,14 +20,14 @@ import os
 
 # CONSTANTS
 num_gpu = 4
-batch_size = 16 * num_gpu
+batch_size = 64 * num_gpu
 batch_size_gpu = batch_size // num_gpu
-batch_size_valid = 16
+batch_size_valid = 64
 r = 64
-c_m = 256
-c_z = 128
+c_m = 128
+c_z = 64
 c = 16
-s = 16
+s = 8
 
 stride = 64
 num_epochs = 3
@@ -35,8 +35,8 @@ learning_rate = 0.005
 progress_bar = True
 save_to_file = False
 load_from_file = False
-USE_DEBUG_DATA = False
-save_dir = './big'
+USE_DEBUG_DATA = True
+save_dir = './debug'
 
 def main():
 
