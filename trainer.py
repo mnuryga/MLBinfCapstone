@@ -19,10 +19,10 @@ from models import Alphafold2_Model
 import os
 
 # CONSTANTS
-num_gpu = 1
-batch_size = 4 * num_gpu
+num_gpu = 4
+batch_size = 32 * num_gpu
 batch_size_gpu = batch_size // num_gpu
-batch_size_valid = 4
+batch_size_valid = 32
 r = 64
 c_m = 128
 c_z = 64
@@ -30,13 +30,13 @@ c = 16
 s = 8
 
 stride = 64
-num_epochs = 3
-learning_rate = 0.005
+num_epochs = 6
+learning_rate = 0.006
 progress_bar = True
-save_to_file = False
+save_to_file = True
 load_from_file = False
-USE_DEBUG_DATA = True
-save_dir = './debug'
+USE_DEBUG_DATA = False
+save_dir = './weights/train_6/'
 
 
 def main():
@@ -78,9 +78,12 @@ def main():
 
 				# run foward pass
 				pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
+# 				print(f'fape shape = {L_fape.shape}')
+# 				print(f'aux shape = {L_aux.shape}')
+# 				print(f'pred_coords shape = {pred_coords.shape}')
 
 				# sum aux and fape as specified in paper
-				loss = 0.5*L_fape + 0.5*L_aux
+				loss = torch.mean(0.5*L_fape + 0.5*L_aux)
 
 				# run backward pass and sum current loss
 				loss.backward()
@@ -99,7 +102,7 @@ def main():
 					checkpoint = {
 						'epoch': epoch,
 						'loss': sum_loss,
-						'state_dict': evoformer.state_dict(),
+						'state_dict': model.state_dict(),
 						'optimizer': optimizer.state_dict(),
 					}
 					if not os.path.exists(save_dir):
@@ -114,15 +117,15 @@ def main():
 			# VALIDATION
 			valid_loss = 0
 			with torch.no_grad():
-				for t_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(valid_loader, disable = True)):
+				for v_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(valid_loader, disable = True)):
 					# send batch to device
 					seqs, evos, masks, angs, coords, bb_rs, bb_ts = seqs.to(device), evos.to(device), masks.to(device), angs.to(device), coords.to(device), bb_rs.to(device), bb_ts.to(device)
 
 					# run forward pass
-					pred_coords, L_fape, L_aux = model_valid(seqs, evos, angs, (bb_rs, bb_ts), coords)
+					pred_coords, L_fape, L_aux = model_valid(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
 					# calculate loss
-					loss = 0.5*L_fape + 0.5*L_aux
+					loss = torch.mean(0.5*L_fape + 0.5*L_aux)
 					valid_loss += loss.item()
 
 			# append current loss to prev_loss list
@@ -130,8 +133,8 @@ def main():
 
 			# print out epoch stats
 			print(f'Epoch {epoch:02d}, {t_batch_idx*batch_size:07,d} crops:')
-			print(f'\tTrain loss per batch = {sum_loss/t_batch_idx/batch_size:.6f}')
-			print(f'\tValid loss per batch = {valid_loss/v_batch_idx/batch_size_valid:.6f}')
+			print(f'\tTrain loss per crop = {sum_loss/t_batch_idx/batch_size:.6f}')
+			print(f'\tValid loss per crop = {valid_loss/v_batch_idx/batch_size_valid:.6f}')
 
 			# # if valid_loss exceedes the 5-epoch rolling sum, break from training
 			# if valid_loss > np.mean(prev_loss[-5:]):
