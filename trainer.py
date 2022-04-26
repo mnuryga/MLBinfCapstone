@@ -19,8 +19,8 @@ from models import Alphafold2_Model
 import os
 
 # CONSTANTS
-num_gpu = 4
-batch_size = 32 * num_gpu
+num_gpu = 1
+batch_size = 16 * num_gpu
 batch_size_gpu = batch_size // num_gpu
 batch_size_valid = 32
 r = 64

@@ -692,7 +692,7 @@ class Structure_Module(nn.Module):
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
-			# s = self.ipa_module(z, s, bb_r, bb_t) + s
+			s = self.ipa_module(z, s, bb_r, bb_t) + s
 
 			# apply layer norm and dropout
 			s = self.ln_ipa(self.dropout(s))
@@ -723,8 +723,8 @@ class Structure_Module(nn.Module):
 			l_psi = torch.sqrt(torch.square(a[:, :, 2]) + torch.square(a[:, :, 3]))
 			l_phi = torch.tile(l_phi.unsqueeze(-1), (1, 1, 2))
 			l_psi = torch.tile(l_psi.unsqueeze(-1), (1, 1, 2))
-			a1 = a[:, :, :2]/l_phi
-			a2 = a[:, :, 2:]/l_psi
+			a1 = a[:, :, :2]/(l_phi + 5e-3)
+			a2 = a[:, :, 2:]/(l_psi + 5e-3)
 			aa = torch.cat((a1, a2), dim = -1)
 			L_torsion = self.loss_func(aa, a_labels)
 			L_anglenorm = torch.mean(torch.abs(l_phi - 1) + torch.abs(l_psi - 1))
