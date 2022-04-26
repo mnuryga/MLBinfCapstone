@@ -131,7 +131,7 @@ def main():
 	ds = Evo_Dataset('train', 128, 5, 64, False, True)
 	dl = DataLoader(dataset = ds, batch_size = 5, num_workers = 0,  drop_last = True)
 	for i, (seq, evo, mask, ang, coord, bb_r, bb_t) in enumerate(dl):
-		print(f'{mask.shape = }')
+# 		print(f'{mask.shape = }')
 		sys.exit(0)
 		pass
 

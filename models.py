@@ -419,7 +419,17 @@ class Evo_Model(nn.Module):
 		return pred_dmat, pred_angs.squeeze(-1)
 
 class IPA_Module(nn.Module):
-	
+	'''
+	Invariant Point Attention with the output of evoformer
+	c_m: channel dim target attention
+	c_z: channel dim of the pair wise bias
+	heads: number of heads for the multi-head attention
+	dim_head: channel dim of each head
+	n_qp: query points
+	n_pv: point values
+
+	Author: Yu-Kai "Steven" Wang
+	'''
 	def __init__(self, c_m, c_z, heads=12, dim_head=None, n_qp=4, n_pv=8):
 		'''
 		dim_head: channel C
@@ -457,29 +467,21 @@ class IPA_Module(nn.Module):
 		# pair_rep to pair_bias
 		pair_bias = self.fc1(pair_rep)
 		pair_bias = rearrange(pair_bias, 'b i j h -> b h i j')
-#         print(f'pair bias shape = {pair_bias.shape}')
 		
 		### SINGLE REP SQR ATTENTION
 		
 		# get q and v for attention training (B x P x R x H x 3)
 		qk = self.to_qk(sing_rep)
-#         print(f'qk shape = {qk.shape}')
 		gq, gk = tuple(rearrange(qk, 'b r (d k p a) -> k b p r d a', k=2, a=3, p=self.n_qp))
-#         print(f'qk shape = {gq.shape}')
 		gv = rearrange(self.to_v(sing_rep), 'b r (d p a) -> b p r d a', a=3, p=self.n_pv)
-#         print(f'gv shape = {gv.shape}')
 		
 		### SINGLE REP DOT ATTENTION
-		
 		# get q, v, k matrices for attention training (B x H x R x C)
 		qkv = self.to_qvk(sing_rep)
-#         print(f'qkv shape = {qkv.shape}')
 		rq, rk, rv = tuple(rearrange(qkv, 'b r (d k h) -> k b h r d', k=3, h=self.heads))
-#         print(f'qkv shape = {rq.shape}')
 	
 		# dot product attention (B x H x R x R)
 		dot_prod_aff = torch.einsum('b h i d , b h j d -> b h i j', rq, rk) * (self.dim_head ** -0.5)
-#         print(f'dot_prod_aff shape = {dot_prod_aff.shape}')
 		
 		# square dist attention
 		Tq = torch.einsum('b p r h a , b r a k -> p h b r k', gq, bbr) + bbt
@@ -493,18 +495,13 @@ class IPA_Module(nn.Module):
 		sqr_dist_aff = rearrange(sqr_dist_aff, 'p h b i j k -> b p h i j k')
 		# norm square
 		sqr_dist_aff = torch.sum(torch.square(torch.norm(sqr_dist_aff, dim=-1)), dim=1) # b h r r
-#         print(f'norm_sqr shape = {sqr_dist_aff.shape}')
 		# multiply head weight
 		head_w = (F.softplus(self.gamma.repeat(self.heads)) * self.w_c) / 2
-#         print(f'head_w shape = {head_w.shape}')
-#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')        
 		sqr_dist_aff = rearrange(rearrange(sqr_dist_aff, 'b h i j -> b i j h') * head_w, 'b i j h -> b h i j')
-#         print(f'sqr_dist_aff shape = {sqr_dist_aff.shape}')
 		
 		# sum attentions with bias then softmax (B x H x R x R)
 		attentions = pair_bias + dot_prod_aff + sqr_dist_aff
 		attentions = torch.softmax(self.w_l * attentions, dim=-1)
-#         print(f'attentions after softmax shape = {attentions.shape}')
 		
 		
 		# dot with pair values (top) 
@@ -512,14 +509,12 @@ class IPA_Module(nn.Module):
 		top = torch.einsum('b h i j , b h j d -> b h i d', rearrange(attentions, 'b h i j -> b i h j'), pair_rep) # B H Rq R x B C R R -> B C R R
 		# concat heads
 		top = rearrange(top, 'b r h c -> b r (h c)')
-#         print(f'top shape = {top.shape}')
 		# transform back to initial dimension
 		top = self.W_1(top)
 		
 		# dot with value points (bot)
 		# B H Rq Rv x B P Rv H 3 => B R1 H P 3
 		Tv = torch.einsum('b p r h a , b r a k -> p h b r k', gv, bbr) + bbt
-#         print(f'Tv shape = {Tv.shape}')
 		bot = torch.einsum('b h i j , p h b j a -> b i h p a', attentions, Tv)
 		# invert backbone frames
 		bbr_inv = torch.linalg.inv(bbr)
@@ -529,7 +524,6 @@ class IPA_Module(nn.Module):
 		bot = rearrange(bot, 'h p b r a -> b r (h p a)')
 		# transform back to initial dimension
 		bot = self.W_2(bot)
-#         print(f'bot shape = {bot.shape}')
 		
 		# dot with matrix v (mid)
 		out = torch.einsum('b h i j , b h j d -> b h i d', attentions, rv)        
@@ -539,7 +533,6 @@ class IPA_Module(nn.Module):
 		out = self.W_0(out)
 		# sum top, mid, bottom
 		out = out + top
-#         print(f'output shape = {out.shape}')
 		
 		return out
 
@@ -560,9 +553,6 @@ class Backbone_Update(nn.Module):
 		q2 = q[:, :, 1:].div(q_coeff[:, :, 1:])
 		qq = torch.cat((q1, q2), dim = -1)
 		r = unitquat_to_rotmat(q)
-		# r = torch.zeros((b, r, 3, 3)).to(x.get_device())
-		# for i in range(b):
-		#   r[i] = Rotation.from_quat(q[i])
 		return r, t
 
 class Structure_Module(nn.Module):
@@ -625,6 +615,8 @@ class Structure_Module(nn.Module):
 		bb_r: (B x R x 3 x 3)
 		bb_t: (B x R x 3)
 		x: (B x R x 3)
+
+		Author: Matthew Uryga
 		'''
 		
 		# split labels
@@ -633,7 +625,6 @@ class Structure_Module(nn.Module):
 		# get dimensions
 		B, I, _, _ = bb_r.shape
 		J = x.shape[1]
-#         x = x.unsqueeze(-1)
 
 		# create x_ij matrices (B x R x R x 3)
 		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
@@ -647,11 +638,6 @@ class Structure_Module(nn.Module):
 		x_ij = rearrange(x_ij, 'i b j m -> b i j m')
 		x_ij_labels = torch.einsum('b i l m , b j l -> i b j m', bb_r_labels_inv, x) + bb_t_labels
 		x_ij_labels = rearrange(x_ij_labels, 'i b j m -> b i j m')
-
-#       for i in range(I):
-#           for j in range(J):
-#               x_ij[:, i, j] = torch.bmm(torch.linalg.inv(bb_r[:, i]), x[:, j]).squeeze() + bb_t[:, i]
-#               x_ij_labels[:, i, j] = torch.bmm(torch.linalg.inv(bb_r_labels[:, i]), x[:, j]).squeeze() + bb_t_labels[:, i]
 
 		# calculate d
 		d = torch.sqrt(torch.square(torch.norm(x_ij - x_ij_labels, dim = -1)) + eps)
@@ -692,7 +678,7 @@ class Structure_Module(nn.Module):
 		# loop over N_layers
 		for l in range(self.N_layer):
 			# pass through ipa module
-			# s = self.ipa_module(z, s, bb_r, bb_t) + s
+			s = self.ipa_module(z, s, bb_r, bb_t) + s
 
 			# apply layer norm and dropout
 			s = self.ln_ipa(self.dropout(s))
@@ -723,8 +709,8 @@ class Structure_Module(nn.Module):
 			l_psi = torch.sqrt(torch.square(a[:, :, 2]) + torch.square(a[:, :, 3]))
 			l_phi = torch.tile(l_phi.unsqueeze(-1), (1, 1, 2))
 			l_psi = torch.tile(l_psi.unsqueeze(-1), (1, 1, 2))
-			a1 = a[:, :, :2]/l_phi
-			a2 = a[:, :, 2:]/l_psi
+			a1 = a[:, :, :2]/(l_phi + 5e-3)
+			a2 = a[:, :, 2:]/(l_psi + 5e-3)
 			aa = torch.cat((a1, a2), dim = -1)
 			L_torsion = self.loss_func(aa, a_labels)
 			L_anglenorm = torch.mean(torch.abs(l_phi - 1) + torch.abs(l_psi - 1))
