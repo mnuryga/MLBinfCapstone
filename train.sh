@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=jobbidy-jobber-jobber-job-job-job-jobbidy-job-job-job-joblib
+#SBATCH --job-name=jobbidy-jobber-jobber-job-job-job-jobbidy-job-job-job-joblib-con-low-low-joblib
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=stevenjust4edu@gmail.com
 #SBATCH --time=360

@@ -36,7 +36,7 @@ def main():
 	print(f"using device: {device}")
 
 	# create and load alphafold2 model from training
-	model = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c), device_ids=[0]).to(device)
+	model = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c)).to(device)
 	model.eval()
 	model.load_state_dict(torch.load('train_tiny_lr/best_5.pth')['state_dict'])
 
@@ -47,6 +47,7 @@ def main():
 	best_loss = float('inf')
 
 	losses = []
+	s_len = []
 
 	sum_loss = 0
 	with torch.no_grad():
@@ -54,19 +55,20 @@ def main():
 		# these crops do not have a randomized starting position
 		for t_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(test_loader, disable = True)):
 			# send batch to device
-			break
 			seqs, evos, masks, angs, coords, bb_rs, bb_ts = seqs.to(device), evos.to(device), masks.to(device), angs.to(device), coords.to(device), bb_rs.to(device), bb_ts.to(device)
 
 			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
-			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item()/seqs.shape[1]
+			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item() / seqs.shape[1]
+
 			if loss < best_loss:
 				best_preds = pred_coords
 				best_coords = coords
 			sum_loss += loss
 			losses.append(loss)
-
+			s_len.append(seqs.shape[1])
 	np.save('losses.npy', np.array(losses))
+	np.save('s_len.npy', np.array(s_len))
 	print(f'Test loss per C_alpha: {sum_loss/t_batch_idx}')
 
 	# coords = best_coords.detach().cpu().numpy()
@@ -76,7 +78,6 @@ def main():
 	# x = np.load('best_x.npy')
 	# y = np.load('best_y.npy')
 	# z = np.load('best_z.npy')
-
 
 	# # x = x/np.max(x)
 	# # y = y/np.max(y)
