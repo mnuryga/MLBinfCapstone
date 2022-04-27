@@ -19,7 +19,7 @@ from datasets import Evo_Dataset
 from models import Alphafold2_Model
 
 # CONSTANTS
-batch_size = 16
+batch_size = 8
 r = 64
 c_m = 128
 c_z = 64
@@ -38,11 +38,13 @@ def main():
 	# create and load alphafold2 model from training
 	model = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c), device_ids=[0]).to(device)
 	model.eval()
-	model.load_state_dict(torch.load('train/best_2.pth')['state_dict'])
+	model.load_state_dict(torch.load('train_tiny_lr/best_5.pth')['state_dict'])
 
 	# create test dataset that batches by sequence
 	test_dataset = Evo_Dataset('test', stride, batch_size, 0, progress_bar, USE_DEBUG_DATA, by_seq = True)
 	test_loader = DataLoader(dataset = test_dataset, batch_size = 1, drop_last = True)
+
+	best_loss = float('inf')
 
 	sum_loss = 0
 	with torch.no_grad():
@@ -55,27 +57,67 @@ def main():
 			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
 			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item()
+			if loss < best_loss:
+				best_preds = pred_coords
+				best_coords = coords
 			sum_loss += loss
-			break
 
-	coords = pred_coords.detach().cpu().numpy()
-	coords /= np.max(coords)
-	print(coords)
-	masks = masks.detach().cpu().numpy()
-	coords = coords * masks[:, :, np.newaxis]
+	print(f'Test loss per seq: {sum_loss/t_batch_idx}')
+
+	coords = best_coords.detach().cpu().numpy()
 	x = coords[:, :, 0][0, 1:]
 	y = coords[:, :, 1][0, 1:]
 	z = coords[:, :, 2][0, 1:]
 
+	x = x/np.max(x)
+	y = y/np.max(y)
+	z = z/np.max(z)
+
 	ax = plt.gca(projection="3d")
 
-	ax.scatter(x,y,z, c='r',s=100)
+	ax.scatter(x,y,z, c='b',s=30)
 
 	ax.plot(x,y,z, color='r')
 
 	plt.show()
+	plt.clf()
 
-	print(f'Test loss per seq: {sum_loss/t_batch_idx}')
+	preds = best_preds.detach().cpu().numpy()
+	x = preds[:, :, 0][0, 1:]
+	y = preds[:, :, 1][0, 1:]
+	z = preds[:, :, 2][0, 1:]
+
+	x = x/np.max(x)
+	y = y/np.max(y)
+	z = z/np.max(z)
+
+	ax = plt.gca(projection="3d")
+
+	ax.scatter(x,y,z, c='b',s=30)
+
+	ax.plot(x,y,z, color='r')
+
+	plt.show()
+	plt.clf()
+
+	coords = best_coords.detach().cpu().numpy()
+	x = coords[:, :, 0][0, 1:]
+	y = coords[:, :, 1][0, 1:]
+	z = coords[:, :, 2][0, 1:]
+
+	x = x/np.max(x)
+	y = y/np.max(y)
+	z = z/np.max(z)
+
+	ax = plt.gca(projection="3d")
+
+	ax.scatter(x,y,z, c='b',s=30)
+
+	ax.plot(x,y,z, color='r')
+
+	plt.show()
+	plt.clf()
+
 
 if __name__ == '__main__':
 	main()
