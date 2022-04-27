@@ -31,12 +31,12 @@ s = 8
 
 stride = 64
 num_epochs = 6
-learning_rate = 0.006
+learning_rate = 0.0003
 progress_bar = True
 save_to_file = True
-load_from_file = False
+load_from_file = True
 USE_DEBUG_DATA = False
-save_dir = './weights/train_6/'
+save_dir = './weights/train_con_low_low_lr/'
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
 
 	# load state_dict from file if specified
 	if load_from_file:
-		model.load_state_dict(torch.load(f'{save_dir}/best.pth')['state_dict'])
+		model.load_state_dict(torch.load(f'{save_dir}/best_5.pth')['state_dict'])
 
 	# initialize optimizer
 	optimizer = optim.Adam(model.parameters(), lr = learning_rate)
