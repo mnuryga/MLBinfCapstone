@@ -19,7 +19,7 @@ from datasets import Evo_Dataset
 from models import Alphafold2_Model
 
 # CONSTANTS
-batch_size = 8
+batch_size = 1
 r = 64
 c_m = 128
 c_z = 64
@@ -46,77 +46,86 @@ def main():
 
 	best_loss = float('inf')
 
+	losses = []
+
 	sum_loss = 0
 	with torch.no_grad():
 		# each batch from the test_loader will contain crops from the same sequence
 		# these crops do not have a randomized starting position
 		for t_batch_idx, (seqs, evos, masks, angs, coords, bb_rs, bb_ts) in enumerate(tqdm(test_loader, disable = True)):
 			# send batch to device
+			break
 			seqs, evos, masks, angs, coords, bb_rs, bb_ts = seqs.to(device), evos.to(device), masks.to(device), angs.to(device), coords.to(device), bb_rs.to(device), bb_ts.to(device)
 
 			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
-			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item()
+			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item()/seqs.shape[1]
 			if loss < best_loss:
 				best_preds = pred_coords
 				best_coords = coords
 			sum_loss += loss
+			losses.append(loss)
 
-	print(f'Test loss per seq: {sum_loss/t_batch_idx}')
+	np.save('losses.npy', np.array(losses))
+	print(f'Test loss per C_alpha: {sum_loss/t_batch_idx}')
 
-	coords = best_coords.detach().cpu().numpy()
-	x = coords[:, :, 0][0, 1:]
-	y = coords[:, :, 1][0, 1:]
-	z = coords[:, :, 2][0, 1:]
+	# coords = best_coords.detach().cpu().numpy()
+	# x = coords[:, :, 0][0, 1:]
+	# y = coords[:, :, 1][0, 1:]
+	# z = coords[:, :, 2][0, 1:]
+	# x = np.load('best_x.npy')
+	# y = np.load('best_y.npy')
+	# z = np.load('best_z.npy')
 
-	x = x/np.max(x)
-	y = y/np.max(y)
-	z = z/np.max(z)
 
-	ax = plt.gca(projection="3d")
+	# # x = x/np.max(x)
+	# # y = y/np.max(y)
+	# # z = z/np.max(z)
 
-	ax.scatter(x,y,z, c='b',s=30)
+	# ax = plt.gca(projection="3d")
 
-	ax.plot(x,y,z, color='r')
+	# ax.scatter(x,y,z, c='b',s=30)
 
-	plt.show()
-	plt.clf()
+	# ax.plot(x,y,z, color='r')
 
-	preds = best_preds.detach().cpu().numpy()
-	x = preds[:, :, 0][0, 1:]
-	y = preds[:, :, 1][0, 1:]
-	z = preds[:, :, 2][0, 1:]
+	# plt.show()
+	# plt.clf()
 
-	x = x/np.max(x)
-	y = y/np.max(y)
-	z = z/np.max(z)
+	# preds = best_preds.detach().cpu().numpy()
+	# x = preds[:, :, 0][0, 1:]
+	# y = preds[:, :, 1][0, 1:]
+	# z = preds[:, :, 2][0, 1:]
 
-	ax = plt.gca(projection="3d")
+	# x = x/np.max(x)
+	# y = y/np.max(y)
+	# z = z/np.max(z)
 
-	ax.scatter(x,y,z, c='b',s=30)
+	# ax = plt.gca(projection="3d")
 
-	ax.plot(x,y,z, color='r')
+	# ax.scatter(x,y,z, c='b',s=30)
 
-	plt.show()
-	plt.clf()
+	# ax.plot(x,y,z, color='r')
 
-	coords = best_coords.detach().cpu().numpy()
-	x = coords[:, :, 0][0, 1:]
-	y = coords[:, :, 1][0, 1:]
-	z = coords[:, :, 2][0, 1:]
+	# plt.show()
+	# plt.clf()
 
-	x = x/np.max(x)
-	y = y/np.max(y)
-	z = z/np.max(z)
+	# coords = best_coords.detach().cpu().numpy()
+	# x = coords[:, :, 0][0, 1:]
+	# y = coords[:, :, 1][0, 1:]
+	# z = coords[:, :, 2][0, 1:]
 
-	ax = plt.gca(projection="3d")
+	# x = x/np.max(x)
+	# y = y/np.max(y)
+	# z = z/np.max(z)
 
-	ax.scatter(x,y,z, c='b',s=30)
+	# ax = plt.gca(projection="3d")
 
-	ax.plot(x,y,z, color='r')
+	# ax.scatter(x,y,z, c='b',s=30)
 
-	plt.show()
-	plt.clf()
+	# ax.plot(x,y,z, color='r')
+
+	# plt.show()
+	# plt.clf()
 
 
 if __name__ == '__main__':
