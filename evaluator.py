@@ -38,7 +38,7 @@ def main():
 	# create and load alphafold2 model from training
 	model = nn.DataParallel(Alphafold2_Model(s, c_m, c_z, c)).to(device)
 	model.eval()
-	model.load_state_dict(torch.load('train_tiny_lr/best_5.pth')['state_dict'])
+	model.load_state_dict(torch.load('checkpoints/best_5.pth')['state_dict'])
 
 	# create test dataset that batches by sequence
 	test_dataset = Evo_Dataset('test', stride, batch_size, 0, progress_bar, USE_DEBUG_DATA, by_seq = True)
@@ -71,70 +71,13 @@ def main():
 			s_len.append(seqs.shape[1])
 			all_preds.append(pred_coords.detach().cpu().numpy())
 			all_coords.append(coords.detach().cpu().numpy())
-			
-	np.save('losses.npy', np.array(losses))
-	np.save('s_len.npy', np.array(s_len))
-	np.save('pred_coords.npy', np.array(pred_coords))
-	np.save('all_coords.npy', np.array(all_coords))
+
+	# write all data to files for use in visualization and loss processing
+	np.save('visualization/losses.npy', np.array(losses))
+	np.save('visualization/s_len.npy', np.array(s_len))
+	np.save('visualization/all_preds.npy', np.array(all_preds))
+	np.save('visualization/all_coords.npy', np.array(all_coords))
 	print(f'Test loss per C_alpha: {sum_loss/t_batch_idx}')
-
-	# coords = best_coords.detach().cpu().numpy()
-	# x = coords[:, :, 0][0, 1:]
-	# y = coords[:, :, 1][0, 1:]
-	# z = coords[:, :, 2][0, 1:]
-	# x = np.load('best_x.npy')
-	# y = np.load('best_y.npy')
-	# z = np.load('best_z.npy')
-
-	# # x = x/np.max(x)
-	# # y = y/np.max(y)
-	# # z = z/np.max(z)
-
-	# ax = plt.gca(projection="3d")
-
-	# ax.scatter(x,y,z, c='b',s=30)
-
-	# ax.plot(x,y,z, color='r')
-
-	# plt.show()
-	# plt.clf()
-
-	# preds = best_preds.detach().cpu().numpy()
-	# x = preds[:, :, 0][0, 1:]
-	# y = preds[:, :, 1][0, 1:]
-	# z = preds[:, :, 2][0, 1:]
-
-	# x = x/np.max(x)
-	# y = y/np.max(y)
-	# z = z/np.max(z)
-
-	# ax = plt.gca(projection="3d")
-
-	# ax.scatter(x,y,z, c='b',s=30)
-
-	# ax.plot(x,y,z, color='r')
-
-	# plt.show()
-	# plt.clf()
-
-	# coords = best_coords.detach().cpu().numpy()
-	# x = coords[:, :, 0][0, 1:]
-	# y = coords[:, :, 1][0, 1:]
-	# z = coords[:, :, 2][0, 1:]
-
-	# x = x/np.max(x)
-	# y = y/np.max(y)
-	# z = z/np.max(z)
-
-	# ax = plt.gca(projection="3d")
-
-	# ax.scatter(x,y,z, c='b',s=30)
-
-	# ax.plot(x,y,z, color='r')
-
-	# plt.show()
-	# plt.clf()
-
 
 if __name__ == '__main__':
 	main()

@@ -630,10 +630,8 @@ class Structure_Module(nn.Module):
 		x_ij = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		x_ij_labels = torch.zeros((B, I, J, 3)).to(bb_r.get_device())
 		
-		######## CHANGE ########
 		bb_r_inv = torch.linalg.inv(bb_r)
 		bb_r_labels_inv = torch.linalg.pinv(bb_r_labels)
-		# bb_r_labels_inv = bb_r_labels
 		x_ij = torch.einsum('b i l m , b j l -> i b j m', bb_r_inv, x) + bb_t
 		x_ij = rearrange(x_ij, 'i b j m -> b i j m')
 		x_ij_labels = torch.einsum('b i l m , b j l -> i b j m', bb_r_labels_inv, x) + bb_t_labels
@@ -755,6 +753,8 @@ class Alphafold2_Model(nn.Module):
 		x, L_fape, L_aux = self.structure_module(prw_rep, msa_rep[:, 0], a_labels, T_labels, x_labels, masks)
 		return x, L_fape, L_aux
 
+
+# main function for testing/debugging models
 def main():
 	device = f'cuda:0' if torch.cuda.is_available() else 'cpu'
 	print(f"using device: {device}")

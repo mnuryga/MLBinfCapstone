@@ -78,9 +78,6 @@ def main():
 
 				# run foward pass
 				pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
-# 				print(f'fape shape = {L_fape.shape}')
-# 				print(f'aux shape = {L_aux.shape}')
-# 				print(f'pred_coords shape = {pred_coords.shape}')
 
 				# sum aux and fape as specified in paper
 				loss = torch.mean(0.5*L_fape + 0.5*L_aux)
