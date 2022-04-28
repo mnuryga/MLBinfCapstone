@@ -4,11 +4,13 @@ import numpy as np
 import sys
 from scipy import stats
 
-def pp(preds):
+def normalize(preds):
 	preds[:, 0] = (preds[:, 0]-np.min(preds[:, 0]))/np.ptp(preds[:, 0])
 	preds[:, 1] = (preds[:, 1]-np.min(preds[:, 1]))/np.ptp(preds[:, 1])
 	preds[:, 2] = (preds[:, 2]-np.min(preds[:, 2]))/np.ptp(preds[:, 2])
+	return preds
 
+def compute_nearest_attachment(preds)
 	order = np.zeros_like(preds)
 	order[0] = preds[0]
 	remaining = preds.tolist()
@@ -21,15 +23,15 @@ def pp(preds):
 		order[i] = np.array(remaining[idx])
 		del remaining[idx]
 
-	return preds, order
+	return order
 
-def visualize():
-	preds = np.load('best_preds.npy')[0, 1:-1]
+def visualize(preds, labels):
 	t = np.pi/3+np.pi
 	preds[:, 0] = preds[:, 0]*np.cos(t) - preds[:, 1]*np.sin(t)
 	preds[:, 1] = preds[:, 0]*np.sin(t) + preds[:, 1]*np.cos(t)
 
-	preds, order = pp(preds)
+	preds = normalize(preds)
+	order = compute_nearest_attachment(preds)
 	preds[:, 0] -= preds[:, 2]/10
 	preds[:, 1] -= preds[:, 2]/10
 	order[:, 0] -= order[:, 2]/10
@@ -40,17 +42,16 @@ def visualize():
 
 	ax.plot(order[:, 0],order[:, 1],order[:, 2], color='r', lw=1)
 
-	preds = np.load('best_coords.npy')[0, 1:-1]
 	t = np.pi/3+np.pi
 	preds[:, 0] = preds[:, 0]*np.cos(t) - preds[:, 1]*np.sin(t)
 	preds[:, 1] = preds[:, 0]*np.sin(t) + preds[:, 1]*np.cos(t)
 
-	preds, order = pp(preds)
+	labels = normalize(labels)
 
 	ax = plt.gca(projection="3d")
 	ax.scatter(preds[:, 0],preds[:, 1],preds[:, 2], c='green', s=10)
 
-	ax.plot(order[:, 0],order[:, 1],order[:, 2], color='pink', lw=1)
+	ax.plot(labels[:, 0],labels[:, 1],labels[:, 2], color='pink', lw=1)
 
 	plt.show()
 	plt.clf()
