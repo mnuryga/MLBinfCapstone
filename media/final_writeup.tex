@@ -141,10 +141,11 @@
 	\item Model training and validation loops
 	\item Model evaluation
 	\item Predicted/Ground truth structure visualization
+	\item Writeups
 \end{enumerate}
 
 \subsection{Repository Link}
-The code for our implementation of the evoformer trunk can be found here:\\https://github.com/mnuryga/MLBinfCapstone.
+The code for our implementation of Alphafold2 can be found here:\\https://github.com/mnuryga/MLBinfCapstone.
 \np
 
 \section{Method}
@@ -166,21 +167,20 @@ Due to memory, time, and processing power limitations, the parameters of the mod
 Without these parameter reductions, evaluation of the model would not be possible on the largest test sequences, as the GPUs would run out of memory to hold the entirety of the protein and its representations.
 
 \subsection{Tuning of Learning Rate}
-Because training took a significant amount of time, the learning rate could not be optimally tuned.  However, through short validation runs, a learning rate of 0.001 was settled on.  The learning rate was manually halved every 6 epochs.
+Because training took a significant amount of time, the learning rate could not be optimally tuned.  It was determined through short validation runs that a learning rate of 0.001 would be reasonable.  The learning rate was manually halved every 6 epochs.
 
 \subsection{Tuning of Dimension Parameters}
-Through a variety of limited experiments, it was found that increasing the 
+Through a variety of limited experiments, it was found that decreasing the dimension parameters had a minimal effect on the performance of the model, however this may not have been the case in actuality.
 
 \subsection{Training}
-Training was conducted on the DCS cluster so that the model could make use of 4 GPUs.  This substantially decreased the training time from approx 3.5 hours per epoch to 50 minutes per epoch.  In total, the model was trained for 18 epochs.
+Training was conducted on the DCS cluster so that the model could make use of 4 GPUs.  This substantially decreased the training time from approximately 3.5 hours per epoch to 50 minutes per epoch.  In total, the model was trained for 18 epochs.
 
 \subsection{Validation}
-Validation was run after each epoch, and the model was stopped if the validation loss was greater than the 5-epoch rolling mean of previous validation losses.
+Validation was run after each epoch, and the model training was stopped if the validation loss was greater than the 5-epoch rolling mean of previous validation losses, although this never occurred.
 
 \section{Results}
 \subsection{Test Loss}
-Because each sequence are different lengths, the testing loss is reported as loss per sequence divided by sequence length $\longrightarrow$ loss per $C_{\alpha}$.\\
-The calculated average test loss was 0.00700787 per $C_{\alpha}$.\\[2mm]
+The calculated average test loss was 1.171323 per sequence.\\[2mm]
 Below are a couple of plots detailing a few more statistics with the test loss:\\[2mm]
 
 \begin{minipage}{0.45\textwidth}
@@ -190,21 +190,47 @@ Below are a couple of plots detailing a few more statistics with the test loss:\
 \begin{minipage}{0.45\textwidth}
 \includegraphics[scale=0.5]{loss_boxplot.png}
 \end{minipage}\\[2mm]
-From the plots above, it appears that the average loss per $C_{\alpha}$ does not have a significant correlation with sequence length - the least squares regression line has a $r^{2}$ value of $0.0545$
+From the plots above, it appears that the average loss per sequence does not have a significant correlation with sequence length - the least squares regression line has a $r^{2}$ value of $0.0545$
 
 \section{Visualization}
 The predicted and true protein structures were visualized by plotting the coordinates of the $C_{\alpha}$ atoms in 3D-space.\\[2mm]
-Below are three sequences that were chosen based on their average loss per $C_{\alpha}$ (the maximum, median, and minimum average loss sequences).
+Below are three sequences that were chosen based on their average loss per sequence (the maximum, median, and minimum average loss sequences).\\[2mm]
+For each protein displayed below, there are two 3D-plots: one without reordering and one with reordering.  Reordering was implemented by starting with the first $C_{\alpha}$ in a sequence and selecting the next $C_{\alpha}$ by smallest Euclidean distance.  This is repeated for the entire sequence.\\
+This creates a less cluttered plot that allows the similarities/dissimilarities to show more clearly.
+\np
 
 \subsection{Best Prediction}
-Average loss per $C_{\alpha}$: $0.$
-\subsection{Average Prediction}
-Average loss per $C_{\alpha}$: $0.$
+Loss per sequence: $0.42200$.\\[3mm]
+Without reordering:\\[2mm]
+\includegraphics[scale=0.42]{best1.png}\np
+With reordering:\\[2mm]
+\includegraphics[scale=0.42]{best2.png}\np
 
+\subsection{Median Prediction}
+Loss per sequence: $1.17614$.\\[3mm]
+Without reordering:\\[2mm]
+\includegraphics[scale=0.42]{med1.png}\np
+With reordering:\\[2mm]
+\includegraphics[scale=0.42]{med2.png}\np
 \subsection{Poor Prediction}
-Average loss per $C_{\alpha}$: $0.$
-
+Loss per sequence: $1.39443$.\\[3mm]
+Without reordering:\\[2mm]
+\includegraphics[scale=0.42]{worst1.png}\np
+With reordering:\\[2mm]
+\includegraphics[scale=0.42]{worst2.png}\np
 
 \section{Conclusion}
+\subsection{Overall Accuracy}
+The 3D-plots above make it evident that the current model is not effective at accurately predicting protein structures.  When the coordinates are normalized, the predicted coordinates of the $C_{\alpha}$ atoms line up reasonably well with the actual coordinates, however the order of the atoms is seemingly random.  When the order is determined post-prediction with the reordering algorithm described above, the prediction appears to match the expected structure better, however it is still far from ideal.
+
+\subsection{Possible Sources of Error}
+There are several possible causes for the poor accuracy shown above:
+\begin{enumerate}[label=(\alph*)]
+	\item The model was not trained for enough time
+	\item The model was train with very subpar hyperparameters, leading to very little learning
+	\item The reduced dimensionality of the model had a much larger effect on the overall accuracy than was initially expected
+	\item There is something fundamentally wrong with the code
+\end{enumerate}
+Any of these could lead to the inaccurate predictions that the model produces, but most likely it is a combination of all of the above that leads to the poor performance of the model.
 
 \end{document}

@@ -33,7 +33,7 @@ def compute_nearest_attachment(preds):
 
 	return order
 
-def visualize(preds, labels):
+def visualize(preds, labels, realign = False):
 	'''
 	given 2 coordinate arrays, plot them in 3d=space
 	and rearrange them to overlay on each other
@@ -43,27 +43,32 @@ def visualize(preds, labels):
 	preds[:, 1] = preds[:, 0]*np.sin(t) + preds[:, 1]*np.cos(t)
 
 	preds = normalize(preds)
-	order = compute_nearest_attachment(preds)
-	preds[:, 0] -= preds[:, 2]/10
-	preds[:, 1] -= preds[:, 2]/10
-	order[:, 0] -= order[:, 2]/10
-	order[:, 1] -= order[:, 2]/10
+	# preds[:, 2] = 1-preds[:, 2]
+	if realign:
+		order = compute_nearest_attachment(preds)
+	else:
+		order = preds
+	preds[:, 0] -= preds[:, 2]/20
+	preds[:, 1] -= preds[:, 2]/20
+	order[:, 0] -= order[:, 2]/20
+	order[:, 1] -= order[:, 2]/20
 
 	ax = plt.gca(projection="3d")
-	ax.scatter(preds[:, 0],preds[:, 1],preds[:, 2], c='b', s=10)
+	ax.scatter(preds[:, 0],preds[:, 1],preds[:, 2], c='b', s=20)
 
-	ax.plot(order[:, 0],order[:, 1],order[:, 2], color='r', lw=1)
+	ax.plot(order[:, 0],order[:, 1],order[:, 2], color='r', lw=1, label = 'predicted')
 
 	t = np.pi/3+np.pi
-	preds[:, 0] = preds[:, 0]*np.cos(t) - preds[:, 1]*np.sin(t)
-	preds[:, 1] = preds[:, 0]*np.sin(t) + preds[:, 1]*np.cos(t)
+	labels[:, 0] = labels[:, 0]*np.cos(t) - labels[:, 1]*np.sin(t)
+	labels[:, 1] = labels[:, 0]*np.sin(t) + labels[:, 1]*np.cos(t)
 
 	labels = normalize(labels)
 
 	ax = plt.gca(projection="3d")
-	ax.scatter(preds[:, 0],preds[:, 1],preds[:, 2], c='green', s=10)
+	ax.scatter(labels[:, 0],labels[:, 1],labels[:, 2], c='green', s=20)
 
-	ax.plot(labels[:, 0],labels[:, 1],labels[:, 2], color='pink', lw=1)
+	ax.plot(labels[:, 0],labels[:, 1],labels[:, 2], color='black', lw=1, label = 'expected')
+	ax.legend()
 
 	plt.show()
 	plt.clf()
@@ -73,7 +78,7 @@ def loss_processing(losses, lens):
 	plots of basic loss data
 	'''
 	plt.boxplot(losses, notch = True)
-	plt.ylabel('Test Loss per C_alpha')
+	plt.ylabel('Test Loss per Sequence')
 	plt.title('Distribution of Test Losses')
 	plt.savefig('../media/loss_boxplot.png', dpi = 250)
 
@@ -82,17 +87,23 @@ def loss_processing(losses, lens):
 	plt.plot(lens,losses)
 	plt.plot(lens, lens*slope+intercept, label = f'Regression Line, r^2={r_value**2:.4f}')
 	plt.xlabel('Sequence Length')
-	plt.ylabel('Test Loss per C_alpha')
+	plt.ylabel('Test Loss per Sequence')
 	plt.title('Test Loss vs. Sequence Length')
 	plt.legend()
 	plt.savefig('../media/loss_seqs.png', dpi = 250)
 
 def main():
+	coords = np.load('all_coords.npy')[:, 1:-1]
+	preds = np.load('all_preds.npy')[:, 1:-1]
 	losses = np.load('losses.npy')
 	lens = np.load('s_len.npy')
-	print(f'{len(losses) = }')
-	sys.exit(0)
-	# visualize()
+	best_idx = np.argmin(losses)
+	med_idx = 26
+	worst_idx = np.argmax(losses)
+	print(losses[best_idx])
+	print(losses[med_idx])
+	print(losses[worst_idx])
+	visualize(preds[worst_idx, 1:lens[worst_idx]-1], coords[worst_idx, 1:lens[worst_idx]-1], realign = True)
 	loss_processing(losses, lens)
 
 if __name__ == '__main__':

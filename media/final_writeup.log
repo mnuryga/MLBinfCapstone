@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  27 APR 2022 18:58
+This is pdfTeX, Version 3.141592653-2.6-1.40.22 (MiKTeX 21.6) (preloaded format=pdflatex 2021.8.29)  27 APR 2022 23:44
 entering extended mode
 **C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/final_writeup.tex
 (C:/Users/mnury/Desktop/CSCI-4969/MLBinfCapstone/media/final_writeup.tex
@@ -622,61 +622,61 @@ LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
 (Font)              scaled to size 12.0pt on input line 119.
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
-(Font)              scaled to size 10.95pt on input line 148.
+(Font)              scaled to size 10.95pt on input line 149.
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
-(Font)              scaled to size 17.28pt on input line 148.
+(Font)              scaled to size 17.28pt on input line 149.
 [1{C:/Users/mnury/AppData/Local/MiKTeX/pdftex/config/pdftex.map}
 
 ]
 LaTeX Font Info:    Trying to load font information for OT1+ntxtlf on input lin
-e 152.
+e 153.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\ot1ntxtlf.fd
 File: ot1ntxtlf.fd 2021/05/24 v1.0 font definition file for OT1/ntx/tlf
 )
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 10.95pt on input line 152.
+(Font)              scaled to size 10.95pt on input line 153.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 8.0pt on input line 152.
+(Font)              scaled to size 8.0pt on input line 153.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 6.1pt on input line 152.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 152
+(Font)              scaled to size 6.1pt on input line 153.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 153
 .
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 152
+LaTeX Font Info:    Trying to load font information for U+msb on input line 153
 .
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Trying to load font information for U+ntxmia on input line 
-152.
+153.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxmia.fd
 File: untxmia.fd 2018/04/14 Fontinst v1.933 font definitions for U/ntxmia.
 )
 LaTeX Font Info:    Trying to load font information for U+ntxsym on input line 
-152.
+153.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxsym.fd
 File: untxsym.fd 2015/03/20 Fontinst v1.933 font definitions for U/ntxsym.
 )
 LaTeX Font Info:    Trying to load font information for U+ntxsyc on input line 
-152.
+153.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/newtx\untxsyc.fd
 File: untxsyc.fd 2012/04/12 Fontinst v1.933 font definitions for U/ntxsyc.
 )
 LaTeX Font Info:    Trying to load font information for U+wasy on input line 15
-2.
+3.
 
 (C:\Users\mnury\AppData\Local\Programs\MiKTeX\tex/latex/wasysym\uwasy.fd
 File: uwasy.fd 2020/01/19 v2.4 Wasy-2 symbol font definitions
 )
-Underfull \hbox (badness 10000) in paragraph at lines 182--185
+Underfull \hbox (badness 10000) in paragraph at lines 183--185
 
  []
 
@@ -701,28 +701,65 @@ Overfull \hbox (18.85081pt too wide) in paragraph at lines 191--192
 [][] 
  []
 
-[3 <./loss_seqs.png> <./loss_boxplot.png>] (final_writeup.aux) ) 
+[3 <./loss_seqs.png> <./loss_boxplot.png>]
+<best1.png, id=23, 1100.61188pt x 1081.03876pt>
+File: best1.png Graphic file (type png)
+<use best1.png>
+Package pdftex.def Info: best1.png  used on input line 205.
+(pdftex.def)             Requested size: 462.25385pt x 454.03319pt.
+ [4 <./best1.png>]
+<best2.png, id=28, 1120.9378pt x 1134.48843pt>
+File: best2.png Graphic file (type png)
+<use best2.png>
+Package pdftex.def Info: best2.png  used on input line 207.
+(pdftex.def)             Requested size: 470.79066pt x 476.4819pt.
+ [5 <./best2.png>]
+<med1.png, id=32, 1088.56688pt x 1030.60031pt>
+File: med1.png Graphic file (type png)
+<use med1.png>
+Package pdftex.def Info: med1.png  used on input line 212.
+(pdftex.def)             Requested size: 457.19498pt x 432.84918pt.
+
+[6 <./med1.png>]
+<med2.png, id=36, 1075.76906pt x 1026.83624pt>
+File: med2.png Graphic file (type png)
+<use med2.png>
+Package pdftex.def Info: med2.png  used on input line 214.
+(pdftex.def)             Requested size: 451.81993pt x 431.26828pt.
+ [7 <./med2.png>]
+<worst1.png, id=42, 1075.01625pt x 1033.61156pt>
+File: worst1.png Graphic file (type png)
+<use worst1.png>
+Package pdftex.def Info: worst1.png  used on input line 218.
+(pdftex.def)             Requested size: 451.50375pt x 434.11389pt.
+ [8 <./worst1.png>]
+<worst2.png, id=46, 1094.58937pt x 1041.8925pt>
+File: worst2.png Graphic file (type png)
+<use worst2.png>
+Package pdftex.def Info: worst2.png  used on input line 220.
+(pdftex.def)             Requested size: 459.7244pt x 437.59187pt.
+ [9 <./worst2.png>]
+[10] (final_writeup.aux) ) 
 Here is how much of TeX's memory you used:
- 10360 strings out of 478864
- 144165 string characters out of 2848660
+ 10402 strings out of 478864
+ 144729 string characters out of 2848660
  636179 words of memory out of 3000000
- 28094 multiletter control sequences out of 15000+600000
+ 28130 multiletter control sequences out of 15000+600000
  441516 words of font info for 79 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  64i,12n,80p,641b,282s stack positions out of 5000i,500n,10000p,200000b,80000s
-{C:/Users/mnury
-/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/newtx/ntx-ot1-tlf.enc}{C:/Users/
-mnury/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/newtx/ntx-ec-tlf.enc}<C:/Us
-ers/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx/NewTXMI.pfb><C
-:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx/NewTXMI7.p
-fb><C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx/txmia
-X.pfb><C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx/tx
-sys.pfb><C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx/
-ztmb.pfb><C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/type1/public/newtx
-/ztmr.pfb>
-Output written on final_writeup.pdf (3 pages, 300935 bytes).
+{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fonts/e
+nc/dvips/newtx/ntx-ot1-tlf.enc}{C:/Users/mnury/AppData/Local/Programs/MiKTeX/fo
+nts/enc/dvips/newtx/ntx-ec-tlf.enc}<C:/Users/mnury/AppData/Local/Programs/MiKTe
+X/fonts/type1/public/newtx/NewTXMI.pfb><C:/Users/mnury/AppData/Local/Programs/M
+iKTeX/fonts/type1/public/newtx/NewTXMI7.pfb><C:/Users/mnury/AppData/Local/Progr
+ams/MiKTeX/fonts/type1/public/newtx/txmiaX.pfb><C:/Users/mnury/AppData/Local/Pr
+ograms/MiKTeX/fonts/type1/public/newtx/txsys.pfb><C:/Users/mnury/AppData/Local/
+Programs/MiKTeX/fonts/type1/public/newtx/ztmb.pfb><C:/Users/mnury/AppData/Local
+/Programs/MiKTeX/fonts/type1/public/newtx/ztmr.pfb>
+Output written on final_writeup.pdf (10 pages, 3809849 bytes).
 PDF statistics:
- 52 PDF objects out of 1000 (max. 8388607)
+ 83 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
- 11 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 41 words of extra memory for PDF output out of 10000 (max. 10000000)
 
