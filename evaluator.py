@@ -48,6 +48,8 @@ def main():
 
 	losses = []
 	s_len = []
+	all_preds = []
+	all_coords = []
 
 	sum_loss = 0
 	with torch.no_grad():
@@ -59,7 +61,7 @@ def main():
 
 			pred_coords, L_fape, L_aux = model(seqs, evos, angs, (bb_rs, bb_ts), coords, masks)
 
-			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item() / seqs.shape[1]
+			loss = torch.mean((0.5*L_fape + 0.5*L_aux)).item()
 
 			if loss < best_loss:
 				best_preds = pred_coords
@@ -67,8 +69,13 @@ def main():
 			sum_loss += loss
 			losses.append(loss)
 			s_len.append(seqs.shape[1])
+			all_preds.append(pred_coords.detach().cpu().numpy())
+			all_coords.append(coords.detach().cpu().numpy())
+			
 	np.save('losses.npy', np.array(losses))
 	np.save('s_len.npy', np.array(s_len))
+	np.save('pred_coords.npy', np.array(pred_coords))
+	np.save('all_coords.npy', np.array(all_coords))
 	print(f'Test loss per C_alpha: {sum_loss/t_batch_idx}')
 
 	# coords = best_coords.detach().cpu().numpy()
