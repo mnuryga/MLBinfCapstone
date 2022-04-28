@@ -48,8 +48,8 @@ def main():
 
 	losses = []
 	s_len = []
-	all_preds = []
-	all_coords = []
+	all_preds = np.zeros((93, 600, 3))
+	all_coords = np.zeros((93, 600, 3))
 
 	sum_loss = 0
 	with torch.no_grad():
@@ -69,8 +69,9 @@ def main():
 			sum_loss += loss
 			losses.append(loss)
 			s_len.append(seqs.shape[1])
-			all_preds.append(pred_coords.detach().cpu().numpy())
-			all_coords.append(coords.detach().cpu().numpy())
+			all_preds[t_batch_idx, :seqs.shape[1]] = pred_coords.detach().cpu().numpy()
+			all_coords[t_batch_idx, :seqs.shape[1]] = coords.detach().cpu().numpy()
+			sys.exit(0)
 
 	# write all data to files for use in visualization and loss processing
 	np.save('visualization/losses.npy', np.array(losses))

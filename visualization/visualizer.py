@@ -5,12 +5,20 @@ import sys
 from scipy import stats
 
 def normalize(preds):
+	'''
+	normalizes the coordinates to [0,1]
+	'''
 	preds[:, 0] = (preds[:, 0]-np.min(preds[:, 0]))/np.ptp(preds[:, 0])
 	preds[:, 1] = (preds[:, 1]-np.min(preds[:, 1]))/np.ptp(preds[:, 1])
 	preds[:, 2] = (preds[:, 2]-np.min(preds[:, 2]))/np.ptp(preds[:, 2])
 	return preds
 
-def compute_nearest_attachment(preds)
+def compute_nearest_attachment(preds):
+	'''
+	For a set of coordinates, picks a starting point and
+	constructs an array of coordinates where each element
+	is ordered by euclidean distance to adjacent points
+	'''
 	order = np.zeros_like(preds)
 	order[0] = preds[0]
 	remaining = preds.tolist()
@@ -26,6 +34,10 @@ def compute_nearest_attachment(preds)
 	return order
 
 def visualize(preds, labels):
+	'''
+	given 2 coordinate arrays, plot them in 3d=space
+	and rearrange them to overlay on each other
+	'''
 	t = np.pi/3+np.pi
 	preds[:, 0] = preds[:, 0]*np.cos(t) - preds[:, 1]*np.sin(t)
 	preds[:, 1] = preds[:, 0]*np.sin(t) + preds[:, 1]*np.cos(t)
@@ -57,6 +69,9 @@ def visualize(preds, labels):
 	plt.clf()
 
 def loss_processing(losses, lens):
+	'''
+	plots of basic loss data
+	'''
 	plt.boxplot(losses, notch = True)
 	plt.ylabel('Test Loss per C_alpha')
 	plt.title('Distribution of Test Losses')
@@ -75,6 +90,8 @@ def loss_processing(losses, lens):
 def main():
 	losses = np.load('losses.npy')
 	lens = np.load('s_len.npy')
+	print(f'{len(losses) = }')
+	sys.exit(0)
 	# visualize()
 	loss_processing(losses, lens)
 
