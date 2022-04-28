@@ -71,8 +71,6 @@ def main():
 			s_len.append(seqs.shape[1])
 			all_preds[t_batch_idx, :seqs.shape[1]] = pred_coords.detach().cpu().numpy()
 			all_coords[t_batch_idx, :seqs.shape[1]] = coords.detach().cpu().numpy()
-			sys.exit(0)
-
 	# write all data to files for use in visualization and loss processing
 	np.save('visualization/losses.npy', np.array(losses))
 	np.save('visualization/s_len.npy', np.array(s_len))
